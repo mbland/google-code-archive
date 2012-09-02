@@ -27,7 +27,8 @@ type Updater interface {
 
 /*
    Parses new footnotes and updates the existing footnote numbers in a textile
-   blog post. Should be allocated using NewFootnoteUpdater().
+   blog post. Will reorder existing footnotes if any existing references are
+   moved. Should be allocated using NewFootnoteUpdater().
 
    FORMAT:
 
@@ -72,10 +73,14 @@ type Updater interface {
 */
 type FootnoteUpdater struct {
 	// By the time the footnotes div is encountered, notes will contain
-	// the empty string at all positions where a footnote already exists,
-	// and text for all positions where new footnotes were parsed from the
-	// text.
+	// the index number (as a string) at all positions where a footnote
+	// already exists, and the full footnote text for all positions where
+	// new footnotes were parsed from the text.
 	notes []string
+
+	// Keeps track of the order of references to existing footnotes; used
+	// to detect if existing footnotes were reordered.
+	existing_order []string
 
 	// Queue of new notes parsed from the text, used to make sure the
 	// elements of notes are in order relative to any preexisting footnote
@@ -87,18 +92,6 @@ type FootnoteUpdater struct {
 
 	num_new_notes   int
 	in_footnote_div bool
-}
-
-// Returns a properly-initialized FootnoteUpdater.
-func NewFootnoteUpdater() *FootnoteUpdater {
-	// notes contains the empty string as its first element to start the
-	// footnote index at one when writing out the footnotes div.
-	return &FootnoteUpdater{
-		notes:           make([]string, 1),
-		new_notes:       make([]string, 0),
-		i:               1,
-		num_new_notes:   0,
-		in_footnote_div: false}
 }
 
 /*

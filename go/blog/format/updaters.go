@@ -20,9 +20,9 @@ var (
 		`\["\(#([a-z-]+)-r([0-9]+)\)\. \^[0-9]+\^":#[a-z-]+-[0-9]+\]`)
 
 	// Matches an existing footnote target from the text.
-	// Group: note title
+	// First group: note title; second group: note index
 	kTarget = regexp.MustCompile(
-		`^\["\(#([a-z-]+)-[0-9]+\)\. \^[0-9]+\^":#[a-z-]+-r[0-9]+\]`)
+		`^\["\(#([a-z-]+)-([0-9]+)\)\. \^[0-9]+\^":#[a-z-]+-r[0-9]+\]`)
 
 	// Matches a new footnote from the text.
 	// First group: note title; second group: note text
@@ -98,6 +98,19 @@ func updatePostPass(label string, input *bufio.Reader, updaters []Updater,
 	return buf.String()
 }
 
+// Returns a properly-initialized FootnoteUpdater.
+func NewFootnoteUpdater() *FootnoteUpdater {
+	// notes contains the empty string as its first element to start the
+	// footnote index at one when writing out the footnotes div.
+	return &FootnoteUpdater{
+		notes:           make([]string, 1),
+		existing_order:  make([]string, 0),
+		new_notes:       make([]string, 0),
+		i:               1,
+		num_new_notes:   0,
+		in_footnote_div: false}
+}
+
 // Expands new footnotes and adjusts existing footnote references. Rewrites
 // the footnote section to contain all footnotes in the correct order.
 func (fnu *FootnoteUpdater) ParseLineFirstPass(
@@ -124,25 +137,35 @@ func (fnu *FootnoteUpdater) ParseLineFirstPass(
 				line[m[1]+i:])
 			i += m[0] + len(ref)
 
-			note := ""
+			note := n
 			if n == "0" {
 				note = fmt.Sprintf(
-					`["(#%s-%d). ^%d^":#%s-r%d]%s`,
+					"[\"(#%s-%d). ^%d^\":#%s-r%d]%s\n",
 					title, fnu.i, fnu.i, title, fnu.i,
 					fnu.new_notes[0])
 				fnu.new_notes = fnu.new_notes[1:]
+			} else {
+				fnu.existing_order = append(
+					fnu.existing_order, n)
 			}
 			fnu.notes = append(fnu.notes, note)
 			fnu.i++
 		}
 	} else if match := kTarget.FindStringSubmatchIndex(line); match != nil {
-		for fnu.i < len(fnu.notes) && len(fnu.notes[fnu.i]) != 0 {
-			buf.WriteString(fnu.notes[fnu.i])
-			buf.WriteString("\n\n")
-			fnu.i++
+		title := line[match[2]:match[3]]
+		index := line[match[4]:match[5]]
+		i := 1
+		for ; i != len(fnu.notes); i++ {
+			note := fnu.notes[i]
+			if note == index {
+				fnu.notes[i] = fmt.Sprintf(
+					`["(#%s-%d). ^%d^":#%s-r%d]%s`,
+					title, i, i, title, i,
+					line[match[1]:])
+				break
+			}
 		}
-
-		if fnu.i == len(fnu.notes) {
+		if i == len(fnu.notes) {
 			fmt.Fprintf(os.Stderr,
 				"Only %d references or new notes parsed, "+
 					"but expected more; look for malformed new "+
@@ -150,38 +173,53 @@ func (fnu *FootnoteUpdater) ParseLineFirstPass(
 					"for existing footnotes\n", fnu.i)
 			os.Exit(1)
 		}
+	} else if line == "</div>\n" {
+		fnu.in_footnote_div = false
+	}
+	return line
+}
 
-		title := line[match[2]:match[3]]
-		line = fmt.Sprintf(`["(#%s-%d). ^%d^":#%s-r%d]%s`,
-			title, fnu.i, fnu.i, title, fnu.i, line[match[1]:])
-		fnu.i++
-
-	} else if line == "</div>\n" && fnu.i < len(fnu.notes) {
-		for _, n := range fnu.notes[fnu.i:] {
-			buf.WriteString(fmt.Sprintf("\n%s\n", n))
+// Prints out all new and reordered footnotes in the footnote div.
+func (fnu *FootnoteUpdater) ParseLineSecondPass(
+	line string, buf *bufio.Writer) string {
+	if line == "<div class=\"footnote\">\n" {
+		fnu.in_footnote_div = true
+	} else if fnu.in_footnote_div {
+		if line == "</div>\n" {
+			if len(fnu.notes) > 1 {
+				buf.WriteString(fnu.notes[1])
+			}
+			for _, n := range fnu.notes[2:len(fnu.notes)] {
+				buf.WriteString(fmt.Sprintf("\n%s", n))
+			}
+			fnu.in_footnote_div = false
+		} else {
+			line = ""
 		}
 	}
 	return line
 }
 
-// Nop, as all processing is done in ParseLineFirstPass().
-func (fnu *FootnoteUpdater) ParseLineSecondPass(
-	line string, buf *bufio.Writer) string {
-	return line
-}
-
-// Returns a message describing the number of new footnotes, or the empty
-// string if no new footnotes were processed.
-func (fnu *FootnoteUpdater) UpdateMessage() string {
+// Returns a message describing the number of new footnotes, whether or not
+// existing footnotes were reordered, or the empty string if nothing changed.
+func (fnu *FootnoteUpdater) UpdateMessage() (msg string) {
+	msg = ""
 	if fnu.num_new_notes != 0 {
 		plural := ""
 		if fnu.num_new_notes != 1 {
 			plural = "s"
 		}
-		return fmt.Sprintf("%d new footnote%s", fnu.num_new_notes,
+		msg = fmt.Sprintf("%d new footnote%s", fnu.num_new_notes,
 			plural)
 	}
-	return ""
+	if !algorithm.ElementsEqualStrings(fnu.existing_order,
+		algorithm.SortedCopyStrings(fnu.existing_order)) {
+		if len(msg) != 0 {
+			msg += ", "
+		}
+		msg += "existing footnotes reordered"
+	}
+	return
 }
 
 // Parses the existing Table of Contents and all section headlines.

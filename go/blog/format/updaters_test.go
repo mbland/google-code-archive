@@ -50,7 +50,6 @@ func TestFootnoteUpdaterExpandNewFootnote(t *testing.T) {
 	const expected = `A new footnote to expand.["(#test-doc-r1). ^1^":#test-doc-1]
 
 <div class="footnote">
-
 ["(#test-doc-1). ^1^":#test-doc-r1]New note.
 </div>
 `
@@ -164,6 +163,54 @@ func TestFootnoteUpdaterThreeNewNotesInARow(t *testing.T) {
 </div>
 `
 	checkUpdate("3 new footnotes", expected, original,
+		[]Updater{NewFootnoteUpdater()}, t)
+}
+
+func TestFootnoteUpdaterReorderExistingFootnotes(t *testing.T) {
+	const original = `These two footnotes have been reordered.["(#test-doc-r2). ^2^":#test-doc-2] This may happen during editing.["(#test-doc-r1). ^1^":#test-doc-1]
+
+<div class="footnote">
+["(#test-doc-1). ^1^":#test-doc-r1]Original first note.
+
+["(#test-doc-2). ^2^":#test-doc-r2]Original second note.
+</div>
+`
+	const expected = `These two footnotes have been reordered.["(#test-doc-r1). ^1^":#test-doc-1] This may happen during editing.["(#test-doc-r2). ^2^":#test-doc-2]
+
+<div class="footnote">
+["(#test-doc-1). ^1^":#test-doc-r1]Original second note.
+
+["(#test-doc-2). ^2^":#test-doc-r2]Original first note.
+</div>
+`
+	checkUpdate("existing footnotes reordered", expected, original,
+		[]Updater{NewFootnoteUpdater()}, t)
+}
+
+func TestFootnoteUpdaterReorderExistingFootnotesWithNewFootnotes(t *testing.T) {
+	const original = `This is a new note.[#test-doc: First new note.] These two footnotes have been reordered.["(#test-doc-r2). ^2^":#test-doc-2] Here's another new note.[#test-doc: Second new note.] This may happen during editing.["(#test-doc-r1). ^1^":#test-doc-1] One more new note.[#test-doc: Third new note.]
+
+<div class="footnote">
+["(#test-doc-1). ^1^":#test-doc-r1]Original first note.
+
+["(#test-doc-2). ^2^":#test-doc-r2]Original second note.
+</div>
+`
+	const expected = `This is a new note.["(#test-doc-r1). ^1^":#test-doc-1] These two footnotes have been reordered.["(#test-doc-r2). ^2^":#test-doc-2] Here's another new note.["(#test-doc-r3). ^3^":#test-doc-3] This may happen during editing.["(#test-doc-r4). ^4^":#test-doc-4] One more new note.["(#test-doc-r5). ^5^":#test-doc-5]
+
+<div class="footnote">
+["(#test-doc-1). ^1^":#test-doc-r1]First new note.
+
+["(#test-doc-2). ^2^":#test-doc-r2]Original second note.
+
+["(#test-doc-3). ^3^":#test-doc-r3]Second new note.
+
+["(#test-doc-4). ^4^":#test-doc-r4]Original first note.
+
+["(#test-doc-5). ^5^":#test-doc-r5]Third new note.
+</div>
+`
+	checkUpdate("3 new footnotes, existing footnotes reordered", expected, original,
 		[]Updater{NewFootnoteUpdater()}, t)
 }
 
