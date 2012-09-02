@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -212,8 +213,7 @@ func (fnu *FootnoteUpdater) UpdateMessage() (msg string) {
 		msg = fmt.Sprintf("%d new footnote%s", fnu.num_new_notes,
 			plural)
 	}
-	if !algorithm.ElementsEqualStrings(fnu.existing_order,
-		algorithm.SortedCopyStrings(fnu.existing_order)) {
+	if !sort.StringsAreSorted(fnu.existing_order) {
 		if len(msg) != 0 {
 			msg += ", "
 		}
