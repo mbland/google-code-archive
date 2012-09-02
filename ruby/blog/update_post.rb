@@ -78,7 +78,7 @@ class FootnoteUpdater
     # By the time the footnotes div is encountered, notes will contain the
     # empty string at all positions where a footnote already exists, and text
     # for all positions where new footnotes were parsed from the text.
-    # Contains the empty string to start the footnote index at zero when
+    # Contains the empty string to start the footnote index at one when
     # writing out the footnotes div.
     @notes = ['']
 
