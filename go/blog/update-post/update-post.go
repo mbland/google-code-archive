@@ -11,9 +11,9 @@ package main
 
 import (
 	"bufio"
+	"code.google.com/p/mike-bland/go/blog/format"
 	"flag"
 	"fmt"
-	"code.google.com/p/mike-bland/go/blog/format"
 	"os"
 )
 

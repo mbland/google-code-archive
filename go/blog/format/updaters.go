@@ -5,9 +5,9 @@ package format
 import (
 	"bufio"
 	"bytes"
+	"code.google.com/p/mike-bland/go/algorithm"
 	"fmt"
 	"io"
-	"code.google.com/p/mike-bland/go/algorithm"
 	"os"
 	"regexp"
 	"strings"
@@ -16,35 +16,35 @@ import (
 var (
 	// Matches an existing footnote reference from the text.
 	// First group: note title; second group: note index
-	REF = regexp.MustCompile(
+	kRef = regexp.MustCompile(
 		`\["\(#([a-z-]+)-r([0-9]+)\)\. \^[0-9]+\^":#[a-z-]+-[0-9]+\]`)
 
 	// Matches an existing footnote target from the text.
 	// Group: note title
-	TARGET = regexp.MustCompile(
+	kTarget = regexp.MustCompile(
 		`^\["\(#([a-z-]+)-[0-9]+\)\. \^[0-9]+\^":#[a-z-]+-r[0-9]+\]`)
 
 	// Matches a new footnote from the text.
 	// First group: note title; second group: note text
-	NEW_NOTE = regexp.MustCompile(`\[#([a-z-]+): ([^\]]+)\]`)
+	kNewNote = regexp.MustCompile(`\[#([a-z-]+): ([^\]]+)\]`)
 
 	// Matches a section headline.
 	// First group: headline ID; second group: headline text
-	HEADLINE = regexp.MustCompile(`^h3\(section#([a-zA-Z0-9-]+)\)\. (.+)`)
+	kHeadline = regexp.MustCompile(`^h3\(section#([a-zA-Z0-9-]+)\)\. (.+)`)
 
 	// Matches a Textile-style link.
 	// Group: link text
-	TEXTILE_LINK = regexp.MustCompile(`\[?"([^"]+)":[^ ]+\]?`)
+	kTextileLink = regexp.MustCompile(`\[?"([^"]+)":[^ ]+\]?`)
 
 	// Matches Textile link characters after a headline has been
 	// processed.
-	HEADLINE_ERROR = regexp.MustCompile(`["\[\]]`)
+	kHeadlineError = regexp.MustCompile(`["\[\]]`)
 )
 
 const (
 	// Start-of-line pattern indicating the presence of a Table of
 	// Contents.
-	TABLE_OF_CONTENTS = `p(toc).`
+	kTableOfContents = `p(toc).`
 )
 
 // Applies each updater to each line of input, writing the results to output.
@@ -108,7 +108,7 @@ func (fnu *FootnoteUpdater) ParseLineFirstPass(
 	}
 
 	if !fnu.in_footnote_div {
-		for m := NEW_NOTE.FindStringSubmatchIndex(line); m != nil; m = NEW_NOTE.FindStringSubmatchIndex(line) {
+		for m := kNewNote.FindStringSubmatchIndex(line); m != nil; m = kNewNote.FindStringSubmatchIndex(line) {
 			title, text := line[m[2]:m[3]], line[m[4]:m[5]]
 			line = fmt.Sprintf("%s[\"(#%s-r0). ^0^\":#%s-0]%s",
 				line[:m[0]], title, title, line[m[1]:])
@@ -116,7 +116,7 @@ func (fnu *FootnoteUpdater) ParseLineFirstPass(
 			fnu.num_new_notes++
 		}
 
-		for i, m := 0, REF.FindStringSubmatchIndex(line); m != nil; m = REF.FindStringSubmatchIndex(line[i:]) {
+		for i, m := 0, kRef.FindStringSubmatchIndex(line); m != nil; m = kRef.FindStringSubmatchIndex(line[i:]) {
 			title, n := line[m[2]+i:m[3]+i], line[m[4]+i:m[5]+i]
 			ref := fmt.Sprintf(`["(#%s-r%d). ^%d^":#%s-%d]`,
 				title, fnu.i, fnu.i, title, fnu.i)
@@ -135,7 +135,7 @@ func (fnu *FootnoteUpdater) ParseLineFirstPass(
 			fnu.notes = append(fnu.notes, note)
 			fnu.i++
 		}
-	} else if match := TARGET.FindStringSubmatchIndex(line); match != nil {
+	} else if match := kTarget.FindStringSubmatchIndex(line); match != nil {
 		for fnu.i < len(fnu.notes) && len(fnu.notes[fnu.i]) != 0 {
 			buf.WriteString(fnu.notes[fnu.i])
 			buf.WriteString("\n\n")
@@ -193,21 +193,21 @@ func (tocu *TableOfContentsUpdater) ParseLineFirstPass(
 		} else {
 			tocu.prev = append(tocu.prev, line)
 		}
-	} else if strings.HasPrefix(line, TABLE_OF_CONTENTS) {
+	} else if strings.HasPrefix(line, kTableOfContents) {
 		tocu.in_toc = true
 		// +1 for the space between TOC and the first headline
-		first := line[len(TABLE_OF_CONTENTS)+1:]
+		first := line[len(kTableOfContents)+1:]
 		if len(first) != 0 {
 			tocu.prev = append(tocu.prev, first)
 		}
-	} else if match := HEADLINE.FindStringSubmatchIndex(line); match != nil {
+	} else if match := kHeadline.FindStringSubmatchIndex(line); match != nil {
 		id := line[match[2]:match[3]]
 		text := line[match[4]:match[5]]
-		text = REF.ReplaceAllLiteralString(text, ``)
-		text = NEW_NOTE.ReplaceAllLiteralString(text, ``)
-		text = TEXTILE_LINK.ReplaceAllString(text, `$1`)
+		text = kRef.ReplaceAllLiteralString(text, ``)
+		text = kNewNote.ReplaceAllLiteralString(text, ``)
+		text = kTextileLink.ReplaceAllString(text, `$1`)
 
-		if match := HEADLINE_ERROR.FindStringIndex(text); match != nil {
+		if match := kHeadlineError.FindStringIndex(text); match != nil {
 			fmt.Fprintf(os.Stderr, "Malformed link or footnote "+
 				"in section headline: %s\n", text)
 			os.Exit(1)
@@ -230,10 +230,10 @@ func (tocu *TableOfContentsUpdater) ParseLineSecondPass(
 		} else {
 			line = ``
 		}
-	} else if strings.HasPrefix(line, TABLE_OF_CONTENTS) {
+	} else if strings.HasPrefix(line, kTableOfContents) {
 		tocu.in_toc = true
 		if len(tocu.curr) != 0 {
-			line = fmt.Sprintf("%s %s", TABLE_OF_CONTENTS,
+			line = fmt.Sprintf("%s %s", kTableOfContents,
 				tocu.curr[0])
 		}
 	}

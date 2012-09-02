@@ -75,15 +75,15 @@ type FootnoteUpdater struct {
 	// the empty string at all positions where a footnote already exists,
 	// and text for all positions where new footnotes were parsed from the
 	// text.
-	notes           []string
+	notes []string
 
 	// Queue of new notes parsed from the text, used to make sure the
 	// elements of notes are in order relative to any preexisting footnote
 	// references.
-	new_notes       []string
+	new_notes []string
 
 	// Keeps track of the current footnote number
-	i               int
+	i int
 
 	num_new_notes   int
 	in_footnote_div bool
