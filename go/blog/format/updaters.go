@@ -1,6 +1,5 @@
 // Copyright 2012 Mike Bland. All rights reserved.
 
-// Functions and classes for updating Textile sources for mike-bland.com.
 package format
 
 import (
@@ -99,34 +98,6 @@ func updatePostPass(label string, input *bufio.Reader, updaters []Updater,
 	return buf.String()
 }
 
-// Interface for classes which apply Textile blog post transformations. All
-// Updater transformations must be idempotent.
-type Updater interface {
-	ParseLineFirstPass(line string, buf *bufio.Writer) string
-	ParseLineSecondPass(line string, buf *bufio.Writer) string
-	UpdateMessage() string
-}
-
-// Updater for expanding new footnotes and adjusting existing footnote
-// references. Will automatically update incorrect footnote references.
-type FootnoteUpdater struct {
-	notes           []string
-	new_notes       []string
-	i               int // Keeps track of the current footnote number
-	num_new_notes   int
-	in_footnote_div bool
-}
-
-// Returns a properly-initialized FootnoteUpdater.
-func NewFootnoteUpdater() *FootnoteUpdater {
-	return &FootnoteUpdater{
-		notes:           make([]string, 1),
-		new_notes:       make([]string, 0),
-		i:               1,
-		num_new_notes:   0,
-		in_footnote_div: false}
-}
-
 // Expands new footnotes and adjusts existing footnote references. Rewrites
 // the footnote section to contain all footnotes in the correct order.
 func (fnu *FootnoteUpdater) ParseLineFirstPass(
@@ -211,14 +182,6 @@ func (fnu *FootnoteUpdater) UpdateMessage() string {
 			plural)
 	}
 	return ""
-}
-
-// Updater for parsing section headlines and producing the Table of Contents.
-// Will reorder existing headlines if a section is moved.
-type TableOfContentsUpdater struct {
-	in_toc bool
-	prev   []string
-	curr   []string
 }
 
 // Parses the existing Table of Contents and all section headlines.
