@@ -213,6 +213,43 @@ func TestFootnoteUpdaterReorderExistingFootnotesWithNewFootnotes(t *testing.T) {
 	checkUpdate("3 new footnotes, existing footnotes reordered", expected, original,
 		[]Updater{NewFootnoteUpdater()}, t)
 }
+func TestFootnoteUpdaterTenExistingFootnotesNoChange(t *testing.T) {
+	// This makes sure that the order of existing footnotes is not
+	// misreported as having changed, since ["1", ..., "10"] will be
+	// reported as unsorted.
+	const original = `First.["(#test-doc-r1). ^1^":#test-doc-1] Second.["(#test-doc-r2). ^2^":#test-doc-2] Third.["(#test-doc-r3). ^3^":#test-doc-3]
+
+Fourth.["(#test-doc-r4). ^4^":#test-doc-4] Fifth.["(#test-doc-r5). ^5^":#test-doc-5] Sixth.["(#test-doc-r6). ^6^":#test-doc-6]
+
+Seventh.["(#test-doc-r7). ^7^":#test-doc-7] Eighth.["(#test-doc-r8). ^8^":#test-doc-8] Ninth.["(#test-doc-r9). ^9^":#test-doc-9]
+
+Tenth.["(#test-doc-r10). ^10^":#test-doc-10]
+
+<div class="footnote">
+["(#test-doc-1). ^1^":#test-doc-r1]First note.
+
+["(#test-doc-2). ^2^":#test-doc-r2]Second note.
+
+["(#test-doc-3). ^3^":#test-doc-r3]Third note.
+
+["(#test-doc-4). ^4^":#test-doc-r4]Fourth note.
+
+["(#test-doc-5). ^5^":#test-doc-r5]Fifth note.
+
+["(#test-doc-6). ^6^":#test-doc-r6]Sixth note.
+
+["(#test-doc-7). ^7^":#test-doc-r7]Seventh note.
+
+["(#test-doc-8). ^8^":#test-doc-r8]Eighth note.
+
+["(#test-doc-9). ^9^":#test-doc-r9]Ninth note.
+
+["(#test-doc-10). ^10^":#test-doc-r10]Tenth note.
+</div>
+`
+	checkUpdate("", original, original,
+		[]Updater{NewFootnoteUpdater()}, t)
+}
 
 func TestTableOfContentsUpdaterEmptyPost(t *testing.T) {
 	checkUpdate("", "", "", []Updater{new(TableOfContentsUpdater)}, t)

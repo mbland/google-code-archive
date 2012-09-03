@@ -11,6 +11,7 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -105,7 +106,7 @@ func NewFootnoteUpdater() *FootnoteUpdater {
 	// footnote index at one when writing out the footnotes div.
 	return &FootnoteUpdater{
 		notes:           make([]string, 1),
-		existing_order:  make([]string, 0),
+		existing_order:  make([]int, 0),
 		new_notes:       make([]string, 0),
 		i:               1,
 		num_new_notes:   0,
@@ -146,8 +147,9 @@ func (fnu *FootnoteUpdater) ParseLineFirstPass(
 					fnu.new_notes[0])
 				fnu.new_notes = fnu.new_notes[1:]
 			} else {
+				j, _ := strconv.Atoi(n)
 				fnu.existing_order = append(
-					fnu.existing_order, n)
+					fnu.existing_order, j)
 			}
 			fnu.notes = append(fnu.notes, note)
 			fnu.i++
@@ -213,7 +215,7 @@ func (fnu *FootnoteUpdater) UpdateMessage() (msg string) {
 		msg = fmt.Sprintf("%d new footnote%s", fnu.num_new_notes,
 			plural)
 	}
-	if !sort.StringsAreSorted(fnu.existing_order) {
+	if !sort.IntsAreSorted(fnu.existing_order) {
 		if len(msg) != 0 {
 			msg += ", "
 		}

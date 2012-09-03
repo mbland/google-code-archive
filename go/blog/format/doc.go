@@ -80,7 +80,7 @@ type FootnoteUpdater struct {
 
 	// Keeps track of the order of references to existing footnotes; used
 	// to detect if existing footnotes were reordered.
-	existing_order []string
+	existing_order []int
 
 	// Queue of new notes parsed from the text, used to make sure the
 	// elements of notes are in order relative to any preexisting footnote
