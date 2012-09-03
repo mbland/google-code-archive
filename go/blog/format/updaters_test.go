@@ -213,6 +213,7 @@ func TestFootnoteUpdaterReorderExistingFootnotesWithNewFootnotes(t *testing.T) {
 	checkUpdate("3 new footnotes, existing footnotes reordered", expected, original,
 		[]Updater{NewFootnoteUpdater()}, t)
 }
+
 func TestFootnoteUpdaterTenExistingFootnotesNoChange(t *testing.T) {
 	// This makes sure that the order of existing footnotes is not
 	// misreported as having changed, since ["1", ..., "10"] will be
@@ -245,6 +246,25 @@ Tenth.["(#test-doc-r10). ^10^":#test-doc-10]
 ["(#test-doc-9). ^9^":#test-doc-r9]Ninth note.
 
 ["(#test-doc-10). ^10^":#test-doc-r10]Tenth note.
+</div>
+`
+	checkUpdate("", original, original,
+		[]Updater{NewFootnoteUpdater()}, t)
+}
+
+func TestFootnoteUpdaterExtraParagraphsInAnExistingFootnoteArePreserved(t *testing.T) {
+	const original = `This existing reference's text should be preserved.["(#test-doc-r1). ^1^":#test-doc-1]
+
+<div class="footnote">
+["(#test-doc-1). ^1^":#test-doc-r1]This is the first line of the first note.
+
+Shouldn't matter how many lines it has.
+
+bq.. Even if it appears as a blockquote or something.
+
+A multiple line blockquote.
+
+p. They should all be preserved.
 </div>
 `
 	checkUpdate("", original, original,

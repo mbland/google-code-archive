@@ -90,6 +90,10 @@ type FootnoteUpdater struct {
 	// Keeps track of the current footnote number
 	i int
 
+	// notes[last_existing_parsed] is the text for the most recently
+	// parsed existing footnote from the footnote div.
+	last_existing_parsed int
+
 	num_new_notes   int
 	in_footnote_div bool
 }

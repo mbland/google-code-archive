@@ -105,12 +105,13 @@ func NewFootnoteUpdater() *FootnoteUpdater {
 	// notes contains the empty string as its first element to start the
 	// footnote index at one when writing out the footnotes div.
 	return &FootnoteUpdater{
-		notes:           make([]string, 1),
-		existing_order:  make([]int, 0),
-		new_notes:       make([]string, 0),
-		i:               1,
-		num_new_notes:   0,
-		in_footnote_div: false}
+		notes:                make([]string, 1),
+		existing_order:       make([]int, 0),
+		new_notes:            make([]string, 0),
+		i:                    1,
+		last_existing_parsed: 0,
+		num_new_notes:        0,
+		in_footnote_div:      false}
 }
 
 // Expands new footnotes and adjusts existing footnote references. Rewrites
@@ -120,9 +121,7 @@ func (fnu *FootnoteUpdater) ParseLineFirstPass(
 	if line == "<div class=\"footnote\">\n" {
 		fnu.in_footnote_div = true
 		fnu.i = 1
-	}
-
-	if !fnu.in_footnote_div {
+	} else if !fnu.in_footnote_div {
 		for m := kNewNote.FindStringSubmatchIndex(line); m != nil; m = kNewNote.FindStringSubmatchIndex(line) {
 			title, text := line[m[2]:m[3]], line[m[4]:m[5]]
 			line = fmt.Sprintf("%s[\"(#%s-r0). ^0^\":#%s-0]%s",
@@ -142,7 +141,7 @@ func (fnu *FootnoteUpdater) ParseLineFirstPass(
 			note := n
 			if n == "0" {
 				note = fmt.Sprintf(
-					"[\"(#%s-%d). ^%d^\":#%s-r%d]%s\n",
+					"[\"(#%s-%d). ^%d^\":#%s-r%d]%s",
 					title, fnu.i, fnu.i, title, fnu.i,
 					fnu.new_notes[0])
 				fnu.new_notes = fnu.new_notes[1:]
@@ -163,6 +162,7 @@ func (fnu *FootnoteUpdater) ParseLineFirstPass(
 				fnu.notes[i] = fmt.Sprintf(
 					`["(#%s-%d). ^%d^":#%s-r%d]%s`,
 					title, i, i, title, i, line[m[1]:])
+				fnu.last_existing_parsed = i
 				break
 			}
 		}
@@ -176,6 +176,10 @@ func (fnu *FootnoteUpdater) ParseLineFirstPass(
 		}
 	} else if line == "</div>\n" {
 		fnu.in_footnote_div = false
+	} else {
+		// A line of text belonging to the last existing footnote.
+		// This includes blank lines containing only a newline.
+		fnu.notes[fnu.last_existing_parsed] += line
 	}
 	return line
 }
@@ -187,11 +191,15 @@ func (fnu *FootnoteUpdater) ParseLineSecondPass(
 		fnu.in_footnote_div = true
 	} else if fnu.in_footnote_div {
 		if line == "</div>\n" {
-			if len(fnu.notes) > 1 {
-				buf.WriteString(fnu.notes[1])
-			}
-			for _, n := range fnu.notes[2:len(fnu.notes)] {
-				buf.WriteString(fmt.Sprintf("\n%s", n))
+			// Remember, fnu.notes is 1-indexed.
+			last := len(fnu.notes) - 2
+			for i, n := range fnu.notes[1:] {
+				buf.WriteString(strings.TrimRight(n, "\n"))
+				if i != last {
+					buf.WriteString("\n\n")
+				} else {
+					buf.WriteRune('\n')
+				}
 			}
 			fnu.in_footnote_div = false
 		} else {
