@@ -154,17 +154,15 @@ func (fnu *FootnoteUpdater) ParseLineFirstPass(
 			fnu.notes = append(fnu.notes, note)
 			fnu.i++
 		}
-	} else if match := kTarget.FindStringSubmatchIndex(line); match != nil {
-		title := line[match[2]:match[3]]
-		index := line[match[4]:match[5]]
+	} else if m := kTarget.FindStringSubmatchIndex(line); m != nil {
+		title, index := line[m[2]:m[3]], line[m[4]:m[5]]
 		i := 1
 		for ; i != len(fnu.notes); i++ {
 			note := fnu.notes[i]
 			if note == index {
 				fnu.notes[i] = fmt.Sprintf(
 					`["(#%s-%d). ^%d^":#%s-r%d]%s`,
-					title, i, i, title, i,
-					line[match[1]:])
+					title, i, i, title, i, line[m[1]:])
 				break
 			}
 		}
@@ -240,14 +238,13 @@ func (tocu *TableOfContentsUpdater) ParseLineFirstPass(
 		if len(first) != 0 {
 			tocu.prev = append(tocu.prev, first)
 		}
-	} else if match := kHeadline.FindStringSubmatchIndex(line); match != nil {
-		id := line[match[2]:match[3]]
-		text := line[match[4]:match[5]]
+	} else if m := kHeadline.FindStringSubmatchIndex(line); m != nil {
+		id, text := line[m[2]:m[3]], line[m[4]:m[5]]
 		text = kRef.ReplaceAllLiteralString(text, ``)
 		text = kNewNote.ReplaceAllLiteralString(text, ``)
 		text = kTextileLink.ReplaceAllString(text, `$1`)
 
-		if match := kHeadlineError.FindStringIndex(text); match != nil {
+		if m := kHeadlineError.FindStringIndex(text); m != nil {
 			fmt.Fprintf(os.Stderr, "Malformed link or footnote "+
 				"in section headline: %s\n", text)
 			os.Exit(1)
