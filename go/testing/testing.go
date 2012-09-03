@@ -24,3 +24,12 @@ func FileAndLine() string {
 	}
 	return "<unknown file>:1"
 }
+
+// Returns the directory in which the current test file resides.
+func TestFileDir() string {
+	_, file, _, ok := runtime.Caller(1)
+	if ok {
+		return filepath.Dir(file)
+	}
+	panic("cannot determine test file directory")
+}

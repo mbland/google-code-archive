@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	msbtest "code.google.com/p/mike-bland/go/testing"
+	"os"
+	"os/exec"
 	"strings"
 	"testing"
 )
@@ -412,4 +414,57 @@ h3(section#test-doc-headline-with-link-embedded-with-footnote). Headline With ["
 		[]Updater{new(TableOfContentsUpdater)}, t)
 }
 
-// TODO(msb): golden file test
+func TestGoldenFile(t *testing.T) {
+	testdata_dir := msbtest.TestFileDir() + "/testdata/"
+	original_name := testdata_dir + "updates-test.textile"
+	original, orig_err := os.Open(original_name)
+	if orig_err != nil {
+		t.Fatalf("failed to open original file: %s: %s",
+			original_name, orig_err)
+	}
+
+	result_name := os.TempDir() + "updates-test-result.textile"
+	result, result_err := os.Create(result_name)
+	if result_err != nil {
+		t.Fatalf("failed to open output file: %s: %s",
+			result_name, result_err)
+	}
+
+	defer func() {
+		if t.Failed() {
+			return
+		}
+		remove_err := os.Remove(result_name)
+		if remove_err != nil {
+			t.Errorf("could not remove output file: %s",
+				result_name)
+		}
+	}()
+
+	msg := UpdatePost(
+		[]Updater{
+			NewFootnoteUpdater(),
+			new(TableOfContentsUpdater),
+		},
+		bufio.NewReader(original), result)
+
+	expected_msg := "8 new footnotes, existing footnotes reordered; " +
+		"2 new/changed headlines, existing headlines reordered"
+
+	if msg != expected_msg {
+		t.Errorf("result message does not match:\n"+
+			"expected: %s\n"+"actual:   %s\n",
+			expected_msg, msg)
+	}
+
+	golden_name := testdata_dir + "updates-test-golden.textile"
+	diff_cmd := exec.Command("/usr/bin/diff", golden_name, result_name)
+	var diff_out bytes.Buffer
+	diff_cmd.Stdout = &diff_out
+	diff_err := diff_cmd.Run()
+	if diff_err != nil {
+		t.Fatalf("diff failed: %s\n%s\nto reproduce: %s",
+			diff_err, diff_out.String(),
+			strings.Join(diff_cmd.Args, " "))
+	}
+}

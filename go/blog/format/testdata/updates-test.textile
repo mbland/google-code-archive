@@ -1,0 +1,94 @@
+---
+layout: post
+title: Updates Test
+physical-location: Brooklyn
+---
+This document is used to test various preprocessing update scenarios.
+
+The table of contents paragraph should be replaced with new and corrected entries, as well as have any embedded footnotes removed and other links in the headline text elided.
+
+p(toc). "Basic Headline":#test-doc-basic
+"Replaced Headline":#test-doc-replaced
+"Headline Is Link":#test-doc-headline-is-link
+"Headline With Link Embedded":#test-doc-headline-with-link-embedded
+"Headline With Footnote":#test-doc-headline-with-footnote
+"Headline With New Footnote":#test-doc-headline-with-new-footnote
+"Headline Is Link With Footnote":#test-doc-headline-is-link-with-footnote
+"Reordered Section":#test-doc-reordered
+"Headline With Link Embedded With Footnote":#test-doc-headline-with-link-embedded-with-footnote
+"Footnotes":#test-doc-footnotes
+
+h3(section#test-doc-basic). Basic Headline
+
+This section has a basic headline that should remain the same in the final Table of Contents.
+
+h3(section#test-doc-replacement). Replacement Headline
+
+This section's headline will replace that of the existing headline, which is incorrect. One of the motivations of writing the updater script is to keep these details in order, which are not built-in "Textile":http://redcloth.org/textile features but are conventions of my blog.
+
+Now we'll see an example of footnote replacement.["(#test-doc-r1). ^1^":#test-doc-1] Here we have a brand new footnote being injected into the text.[#test-doc: New footnote with an existing footnote before] It's important to make sure that multiple footnotes in the same paragraph are in the same relative order after an insertion.["(#test-doc-r2). ^2^":#test-doc-2]
+
+Here's our next paragraph containing a footnote. Notice how the original footnote reference is pointing at the wrong target.["(#test-doc-r3). ^3^":#test-doc-4] This reference should be perfectly fine after update processing.
+
+h3(section#test-doc-headline-is-link). "Headline Is Link":http://www.example.com/
+
+The headline of this section is a link. The resulting Table of Contents entry should extract the anchor text and use that as the anchor text of the link to this section.
+
+h3(section#test-doc-reordered). Reordered Section
+
+This is a section that's been moved around, and needs its entry in the Table of Contents adjusted to appear in the correct position.
+
+h3(section#test-doc-headline-with-link-embedded). Headline With "Link":http://www.example.com/ Embedded
+
+This section's headline contains a link. Its anchor text should be extracted and merged with the surrounding text to form the anchor text in the TOC.
+
+Here we have another new footnote embedded.[#test-doc: Another new footnote]
+
+h3(section#test-doc-new-headline). New Headline
+
+Here's a new section with a new headline that should get injected into the TOC in the right position. At the same time, we're going to pretend that this piece of text used to appear later, so the corresponding footnote needs to be moved to its new position.["(#test-doc-r7). ^7^":#test-doc-7]
+
+h3(section#test-doc-headline-with-footnote). Headline With Footnote["(#test-doc-r5). ^5^":#test-doc-5]
+
+The existing footnote in this headline should be updated, while the headline in the TOC should appear without the reference. At the same time, this paragraph and its footnote appear as though it's been moved further down the post, requiring its corresponding footnote to be reordered.["(#test-doc-r4). ^4^":#test-doc-4]
+
+We'll also inject three new footnotes into the same paragraph.[#test-doc: Injection 1 of 3] What fun it is to footnote, really.[#test-doc: Injection 2 of 3] I'm rather pleased with how this system worked out.[#test-doc: Injection 3 of 3]
+
+And here we're back to an existing footnote reference.["(#test-doc-r6). ^6^":#test-doc-6] Again, should be good to go.
+
+h3(section#test-doc-headline-with-new-footnote). Headline With New Footnote[#test-doc: It shouldn't matter which order the parsers are run in for this to work]
+
+Just when you think we're done with footnotes, guess again.
+
+h3(section#test-doc-headline-is-link-with-footnote). ["Headline Is Link With Footnote":http://www.example.com/][#test-doc: A new foot to boot, since that's easier]
+
+h3(section#test-doc-headline-with-link-embedded-with-footnote). Headline With ["Link":http://www.example.com/] Embedded With Footnote[#test-doc: Brackets around link for extra security, and parsing drama.]
+
+h3(section#test-doc-footnotes). Footnotes
+
+<div class="footnote">
+["(#test-doc-1). ^1^":#test-doc-r1]First existing footnote.
+
+["(#test-doc-2). ^2^":#test-doc-r2]Second existing footnote.
+
+["(#test-doc-3). ^3^":#test-doc-r3]Third existing footnote. Also has some advanced formatting from a real post, to make sure the additional paragraphs aren't messed up:
+
+bc(plain). ParseDocument(&document, kNewChecksumParser, kIgnoreEmbeddedContent,
+              kLogErrorsToStdout)
+
+than to see:
+
+bc(plain). ParseDocument(&document, true, false, false)
+
+have to dive into other files to figure out what @true@ and @false@ mean in one position vs. another, and then keep that in my head as I try to understand the larger context of what the code's doing. Plus, as a bonus, a single @enum@ can represent more options than just @true@ or @false@, if you need that kind of flexibility.
+
+Hat tip to "Herb Sutter's &quot;Conversations: Truth or Consequences&quot;":http://www.drdobbs.com/conversationstruth-or-consequences/184403845 for what proved a formative piece of advice in my early career: _"Disciples meditating upon the function f() do not need to interrupt their thoughts to look up what the parameters to sendText mean."_
+
+["(#test-doc-4). ^4^":#test-doc-r4]Fourth original footnote.
+
+["(#test-doc-5). ^5^":#test-doc-r5]Fifth original footnote.
+
+["(#test-doc-6). ^6^":#test-doc-r6]Sixth original footnote.
+
+["(#test-doc-7). ^7^":#test-doc-r7]Seventh original footnote.
+</div>
