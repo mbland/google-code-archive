@@ -58,6 +58,8 @@ type Searcher interface {
 }
 
 // Returns true if c.Lhs and c.Rhs contain identical values.
+// Lower bound: O(1) when lengths are different.
+// Upper bound: O(len(c.Lhs)) when all elements are equal.
 func ElementsEqual(c Comparator) bool {
 	len_lhs, len_rhs := c.Lengths()
 	if len_lhs != len_rhs {
@@ -73,6 +75,7 @@ func ElementsEqual(c Comparator) bool {
 
 // Finds elements in c.Lhs not present in c.Rhs. c.Lhs and c.Rhs must be
 // sorted.
+// Lower and upper bound: O(len(c.Lhs))
 func SetDifference(c Collector) {
 	len_lhs, len_rhs := c.Lengths()
 	i := 0
@@ -92,6 +95,7 @@ func SetDifference(c Collector) {
 
 // Returns elements of s.Lhs also contained in s.Rhs. The order of elements in
 // s.Lhs is preserved.
+// Lower and upper bound: O(len(c.Lhs) log len(c.Rhs)).
 func Contains(s Searcher) {
 	lhs_len, rhs_len := s.Lengths()
 	for i := 0; i != lhs_len; i++ {

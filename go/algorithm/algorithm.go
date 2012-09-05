@@ -7,6 +7,8 @@ package algorithm
 import "sort"
 
 // Returns true if lhs and rhs contain identical string values.
+// Lower bound: O(1) when lengths are different.
+// Upper bound: O(len(lhs)) when all elements are equal.
 func ElementsEqualStrings(lhs, rhs []string) bool {
 	if len(lhs) != len(rhs) {
 		return false
@@ -28,6 +30,7 @@ func SortedCopyStrings(l []string) (r []string) {
 }
 
 // Finds strings in lhs not present in rhs. lhs and rhs must be sorted.
+// Lower and upper bound: O(len(lhs))
 func SetDifferenceStrings(lhs, rhs []string) []string {
 	r := make([]string, 0, len(lhs))
 	i := 0
@@ -47,6 +50,7 @@ func SetDifferenceStrings(lhs, rhs []string) []string {
 
 // Returns elements of lhs also contained in rhs. The order of elements in lhs
 // is preserved. rhs must be sorted.
+// Lower and upper bound: O(len(lhs) log len(rhs)).
 func ContainsStrings(lhs, rhs []string) (r []string) {
 	r = make([]string, 0, len(lhs))
 	for _, v := range lhs {
