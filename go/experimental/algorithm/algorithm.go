@@ -10,7 +10,7 @@
 // contain two collections of the same type, or collections of different types
 // that can be meaningfully compared. The collections are assumed to be
 // slices, indexable by an integer value. The two collections are referred to
-// as "Lhs" and "Rhs", for left-hand side and right-hand side, repectively.
+// as "Lhs" and "Rhs", for left-hand side and right-hand side, respectively.
 package algorithm
 
 // Interface for comparing elements between the Lhs and Rhs collections.
