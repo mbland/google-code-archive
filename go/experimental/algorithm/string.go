@@ -93,8 +93,8 @@ func SetDifferenceStrings(lhs, rhs []string) []string {
 
 // Returns elements of lhs also contained in rhs. The order of elements in lhs
 // is preserved. rhs must be sorted.
-func ContainsStrings(lhs, rhs []string) []string {
+func SetIntersectionUnorderedStrings(lhs, rhs []string) []string {
 	s := NewStringSearcher(lhs, rhs)
-	Contains(s)
+	SetIntersectionUnordered(s)
 	return s.Result
 }

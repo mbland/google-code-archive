@@ -301,8 +301,8 @@ func (tocu *TableOfContentsUpdater) UpdateMessage() (msg string) {
 		msg = fmt.Sprintf("%d new/changed headline%s", n, plural)
 	}
 
-	before := algorithm.ContainsStrings(tocu.prev, curr)
-	after := algorithm.ContainsStrings(tocu.curr, prev)
+	before := algorithm.SetIntersectionUnorderedStrings(tocu.prev, curr)
+	after := algorithm.SetIntersectionUnorderedStrings(tocu.curr, prev)
 
 	if !algorithm.ElementsEqualStrings(before, after) {
 		if len(msg) != 0 {

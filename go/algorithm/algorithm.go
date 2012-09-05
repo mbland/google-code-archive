@@ -51,7 +51,7 @@ func SetDifferenceStrings(lhs, rhs []string) []string {
 // Returns elements of lhs also contained in rhs. The order of elements in lhs
 // is preserved. rhs must be sorted.
 // Lower and upper bound: O(len(lhs) log len(rhs)).
-func ContainsStrings(lhs, rhs []string) (r []string) {
+func SetIntersectionUnorderedStrings(lhs, rhs []string) (r []string) {
 	r = make([]string, 0, len(lhs))
 	for _, v := range lhs {
 		if i := sort.SearchStrings(rhs, v); i != len(rhs) && rhs[i] == v {

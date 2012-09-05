@@ -148,10 +148,11 @@ func TestSetDifferenceStrings(t *testing.T) {
 		[]string{"k", "l", "m"}, []string{"a", "b", "c"}, t)
 }
 
-func checkContainsStrings(msg string, expected, a, b []string, t *testing.T) {
-	actual := ContainsStrings(a, b)
+func checkSetIntersectionUnorderedStrings(msg string, expected, a, b []string,
+	t *testing.T) {
+	actual := SetIntersectionUnorderedStrings(a, b)
 	if !ElementsEqualStrings(expected, actual) {
-		t.Errorf("%s: %s ContainsStrings result unexpected:\n"+
+		t.Errorf("%s: %s SetIntersectionUnorderedStrings result unexpected:\n"+
 			"a:        %s\n"+
 			"b:        %s\n"+
 			"expected: %s\n"+
@@ -160,44 +161,44 @@ func checkContainsStrings(msg string, expected, a, b []string, t *testing.T) {
 	}
 }
 
-func TestContainsStrings(t *testing.T) {
+func TestSetIntersectionUnorderedStrings(t *testing.T) {
 	// Precondition: RHS must be sorted
-	checkContainsStrings("empty vs. empty", []string{},
+	checkSetIntersectionUnorderedStrings("empty vs. empty", []string{},
 		[]string{}, []string{}, t)
-	checkContainsStrings("single element vs. empty", []string{},
+	checkSetIntersectionUnorderedStrings("single element vs. empty", []string{},
 		[]string{"a"}, []string{}, t)
-	checkContainsStrings("empty vs. single element", []string{},
+	checkSetIntersectionUnorderedStrings("empty vs. single element", []string{},
 		[]string{}, []string{"a"}, t)
-	checkContainsStrings("multiple element vs. empty", []string{},
+	checkSetIntersectionUnorderedStrings("multiple element vs. empty", []string{},
 		[]string{"a", "b", "c"}, []string{}, t)
-	checkContainsStrings("empty vs. multiple element", []string{},
+	checkSetIntersectionUnorderedStrings("empty vs. multiple element", []string{},
 		[]string{}, []string{"a", "b", "c"}, t)
-	checkContainsStrings("equal single element", []string{"a"},
+	checkSetIntersectionUnorderedStrings("equal single element", []string{"a"},
 		[]string{"a"}, []string{"a"}, t)
-	checkContainsStrings("different single element", []string{},
+	checkSetIntersectionUnorderedStrings("different single element", []string{},
 		[]string{"a"}, []string{"b"}, t)
-	checkContainsStrings("different single element", []string{},
+	checkSetIntersectionUnorderedStrings("different single element", []string{},
 		[]string{"b"}, []string{"a"}, t)
-	checkContainsStrings("all equal sorted", []string{"a", "b", "c"},
+	checkSetIntersectionUnorderedStrings("all equal sorted", []string{"a", "b", "c"},
 		[]string{"a", "b", "c"}, []string{"a", "b", "c"}, t)
-	checkContainsStrings("all equal unsorted", []string{"c", "a", "b"},
+	checkSetIntersectionUnorderedStrings("all equal unsorted", []string{"c", "a", "b"},
 		[]string{"c", "a", "b"}, []string{"a", "b", "c"}, t)
-	checkContainsStrings("first element missing", []string{"a", "b"},
+	checkSetIntersectionUnorderedStrings("first element missing", []string{"a", "b"},
 		[]string{"c", "a", "b"}, []string{"a", "b"}, t)
-	checkContainsStrings("second element missing", []string{"c", "b"},
+	checkSetIntersectionUnorderedStrings("second element missing", []string{"c", "b"},
 		[]string{"c", "a", "b"}, []string{"b", "c"}, t)
-	checkContainsStrings("third element missing", []string{"c", "a"},
+	checkSetIntersectionUnorderedStrings("third element missing", []string{"c", "a"},
 		[]string{"c", "a", "b"}, []string{"a", "c"}, t)
-	checkContainsStrings("first and second elements missing",
+	checkSetIntersectionUnorderedStrings("first and second elements missing",
 		[]string{"b"},
 		[]string{"c", "a", "b"}, []string{"b"}, t)
-	checkContainsStrings("first and third elements missing",
+	checkSetIntersectionUnorderedStrings("first and third elements missing",
 		[]string{"a"},
 		[]string{"c", "a", "b"}, []string{"a"}, t)
-	checkContainsStrings("second and third elements missing",
+	checkSetIntersectionUnorderedStrings("second and third elements missing",
 		[]string{"c"},
 		[]string{"c", "a", "b"}, []string{"c"}, t)
-	checkContainsStrings("all different",
+	checkSetIntersectionUnorderedStrings("all different",
 		[]string{},
 		[]string{"c", "a", "b"}, []string{"d", "e", "f"}, t)
 }

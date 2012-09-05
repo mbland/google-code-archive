@@ -96,7 +96,7 @@ func SetDifference(c Collector) {
 // Returns elements of s.Lhs also contained in s.Rhs. The order of elements in
 // s.Lhs is preserved.
 // Lower and upper bound: O(len(c.Lhs) log len(c.Rhs)).
-func Contains(s Searcher) {
+func SetIntersectionUnordered(s Searcher) {
 	lhs_len, rhs_len := s.Lengths()
 	for i := 0; i != lhs_len; i++ {
 		if j := s.Search(i); j != rhs_len && s.Equal(i, j) {
