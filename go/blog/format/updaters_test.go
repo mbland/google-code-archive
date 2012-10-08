@@ -273,6 +273,22 @@ p. They should all be preserved.
 		[]Updater{NewFootnoteUpdater()}, t)
 }
 
+func TestFoonoteUpdaterTitleHasNumbers(t *testing.T) {
+	const original = `Some text.[#test-2012: This footnote title has numbers.]
+
+<div class="footnote">
+</div>
+`
+	const expected = `Some text.["(#test-2012-r1). ^1^":#test-2012-1]
+
+<div class="footnote">
+["(#test-2012-1). ^1^":#test-2012-r1]This footnote title has numbers.
+</div>
+`
+	checkUpdate("1 new footnote", expected, original,
+		[]Updater{NewFootnoteUpdater()}, t)
+}
+
 func TestTableOfContentsUpdaterEmptyPost(t *testing.T) {
 	checkUpdate("", "", "", []Updater{new(TableOfContentsUpdater)}, t)
 }

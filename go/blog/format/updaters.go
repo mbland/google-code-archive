@@ -19,16 +19,16 @@ var (
 	// Matches an existing footnote reference from the text.
 	// First group: note title; second group: note index
 	kRef = regexp.MustCompile(
-		`\["\(#([a-z-]+)-r([0-9]+)\)\. \^[0-9]+\^":#[a-z-]+-[0-9]+\]`)
+		`\["\(#([a-zA-Z0-9-]+)-r([0-9]+)\)\. \^[0-9]+\^":#[a-zA-Z0-9-]+-[0-9]+\]`)
 
 	// Matches an existing footnote target from the text.
 	// First group: note title; second group: note index
 	kTarget = regexp.MustCompile(
-		`^\["\(#([a-z-]+)-([0-9]+)\)\. \^[0-9]+\^":#[a-z-]+-r[0-9]+\]`)
+		`^\["\(#([a-zA-Z0-9-]+)-([0-9]+)\)\. \^[0-9]+\^":#[a-zA-Z0-9-]+-r[0-9]+\]`)
 
 	// Matches a new footnote from the text.
 	// First group: note title; second group: note text
-	kNewNote = regexp.MustCompile(`\[#([a-z-]+): ([^\]]+)\]`)
+	kNewNote = regexp.MustCompile(`\[#([a-zA-Z0-9-]+): ([^\]]+)\]`)
 
 	// Matches a section headline.
 	// First group: headline ID; second group: headline text
