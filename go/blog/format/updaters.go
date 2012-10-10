@@ -26,10 +26,6 @@ var (
 	kTarget = regexp.MustCompile(
 		`^\["\(#([a-zA-Z0-9-]+)-([0-9]+)\)\. \^[0-9]+\^":#[a-zA-Z0-9-]+-r[0-9]+\]`)
 
-	// Matches a new footnote from the text.
-	// First group: note title; second group: note text
-	kNewNote = regexp.MustCompile(`\[#([a-zA-Z0-9-]+): ([^\]]+)\]`)
-
 	// Matches a section headline.
 	// First group: headline ID; second group: headline text
 	kHeadline = regexp.MustCompile(`^h3\(section#([a-zA-Z0-9-]+)\)\. (.+)`)
@@ -114,6 +110,72 @@ func NewFootnoteUpdater() *FootnoteUpdater {
 		in_footnote_div:      false}
 }
 
+// Finds new footnotes in s, returning the index ranges of the full note, its
+// title, and the text of the note.
+//
+// These ranges are inclusive at the beginning, exclusive at the end:
+//   s[0:1]: Note
+//   s[2:3]: Note title
+//   s[4:5]: Note text
+func findNewNote(s string) []int {
+	const kBeginNote = "[#"
+	note_begin := strings.Index(s, kBeginNote)
+
+	if note_begin == -1 {
+		return nil
+	}
+
+	open_brackets := 1
+	note_end := 0
+
+	for i := note_begin + len(kBeginNote); i != len(s); i++ {
+		if s[i] == '[' {
+			open_brackets++
+		} else if s[i] == ']' {
+			open_brackets--
+			if open_brackets == 0 {
+				note_end = i + 1
+				break
+			}
+		}
+	}
+
+	if open_brackets != 0 {
+		return nil
+	}
+
+	const kEndTitle = ": "
+	title_end := strings.Index(s[note_begin:note_end], kEndTitle)
+
+	if title_end == -1 {
+		return nil
+	}
+	title_end += note_begin
+	return []int{
+		note_begin, note_end,
+		note_begin + len(kBeginNote), title_end,
+		title_end + len(kEndTitle), note_end - 1}
+}
+
+// Returns a copy of s with all embedded footnotes removed.
+func eraseNewNotes(s string) string {
+	m := findNewNote(s)
+	if m == nil {
+		return s
+	}
+
+	var b bytes.Buffer
+	b.WriteString(s[:m[0]])
+	last_end := m[1]
+
+	for m = findNewNote(s[last_end:]); m != nil; m = findNewNote(s[last_end:]) {
+		b.WriteString(s[last_end : last_end+m[0]])
+		last_end += m[1]
+	}
+	b.WriteString(s[last_end:])
+	return b.String()
+}
+
 // Expands new footnotes and adjusts existing footnote references. Rewrites
 // the footnote section to contain all footnotes in the correct order.
 func (fnu *FootnoteUpdater) ParseLineFirstPass(
@@ -122,7 +184,7 @@ func (fnu *FootnoteUpdater) ParseLineFirstPass(
 		fnu.in_footnote_div = true
 		fnu.i = 1
 	} else if !fnu.in_footnote_div {
-		for m := kNewNote.FindStringSubmatchIndex(line); m != nil; m = kNewNote.FindStringSubmatchIndex(line) {
+		for m := findNewNote(line); m != nil; m = findNewNote(line) {
 			title, text := line[m[2]:m[3]], line[m[4]:m[5]]
 			line = fmt.Sprintf("%s[\"(#%s-r0). ^0^\":#%s-0]%s",
 				line[:m[0]], title, title, line[m[1]:])
@@ -249,7 +311,7 @@ func (tocu *TableOfContentsUpdater) ParseLineFirstPass(
 	} else if m := kHeadline.FindStringSubmatchIndex(line); m != nil {
 		id, text := line[m[2]:m[3]], line[m[4]:m[5]]
 		text = kRef.ReplaceAllLiteralString(text, ``)
-		text = kNewNote.ReplaceAllLiteralString(text, ``)
+		text = eraseNewNotes(text)
 		text = kTextileLink.ReplaceAllString(text, `$1`)
 
 		if m := kHeadlineError.FindStringIndex(text); m != nil {
