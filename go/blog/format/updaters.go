@@ -159,16 +159,10 @@ func findNewNote(s string) []int {
 
 // Returns a copy of s with all embedded footnotes removed.
 func eraseNewNotes(s string) string {
-	m := findNewNote(s)
-	if m == nil {
-		return s
-	}
-
 	var b bytes.Buffer
-	b.WriteString(s[:m[0]])
-	last_end := m[1]
+	last_end := 0
 
-	for m = findNewNote(s[last_end:]); m != nil; m = findNewNote(s[last_end:]) {
+	for m := findNewNote(s); m != nil; m = findNewNote(s[last_end:]) {
 		b.WriteString(s[last_end : last_end+m[0]])
 		last_end += m[1]
 	}
