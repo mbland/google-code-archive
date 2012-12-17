@@ -190,6 +190,18 @@ func OrganElementsEqual(lhs, rhs Organs) bool {
 	return true
 }
 
+func OrganElementsEqualClosure(lhs, rhs Organs, eq func(l, r Organ) bool) bool {
+	if len(lhs) != len(rhs) {
+		return false
+	}
+	for i, v := range lhs {
+		if !eq(*v, *rhs[i]) {
+			return false
+		}
+	}
+	return true
+}
+
 var (
 	lhs_organs = Organs{
 		{"brain", 1340},
@@ -215,6 +227,13 @@ func BenchmarkOrganNameElementsEqualHardcoded(b *testing.B) {
 	}
 }
 
+func BenchmarkOrganNameElementsEqualClosure(b *testing.B) {
+	for i := 0; i != b.N; i++ {
+		OrganElementsEqualClosure(lhs_organs, rhs_organs,
+			func(l, r Organ) bool { return l.Name == r.Name })
+	}
+}
+
 func BenchmarkOrganNameElementsEqualGeneric(b *testing.B) {
 	for i := 0; i != b.N; i++ {
 		algorithm.ElementsEqual(NewOrganNameComparator(lhs_organs, rhs_organs))
@@ -227,6 +246,13 @@ func BenchmarkOrganWeightElementsEqualHardcoded(b *testing.B) {
 	}
 }
 
+func BenchmarkOrganWeightElementsEqualClosure(b *testing.B) {
+	for i := 0; i != b.N; i++ {
+		OrganElementsEqualClosure(lhs_organs, rhs_organs,
+			func(l, r Organ) bool { return l.Weight == r.Weight })
+	}
+}
+
 func BenchmarkOrganWeightElementsEqualGeneric(b *testing.B) {
 	for i := 0; i != b.N; i++ {
 		algorithm.ElementsEqual(NewOrganWeightComparator(lhs_organs, rhs_organs))
@@ -236,6 +262,13 @@ func BenchmarkOrganWeightElementsEqualGeneric(b *testing.B) {
 func BenchmarkOrganElementsEqualHardcoded(b *testing.B) {
 	for i := 0; i != b.N; i++ {
 		OrganElementsEqual(lhs_organs, rhs_organs)
+	}
+}
+
+func BenchmarkOrganElementsEqualClosure(b *testing.B) {
+	for i := 0; i != b.N; i++ {
+		OrganElementsEqualClosure(lhs_organs, rhs_organs,
+			func(l, r Organ) bool { return l.Name == r.Name && l.Weight == r.Weight })
 	}
 }
 
