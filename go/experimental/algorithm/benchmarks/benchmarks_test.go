@@ -166,12 +166,44 @@ func OrganNameElementsEqual(lhs, rhs Organs) bool {
 	return true
 }
 
+func OrganNamesEqual(lhs, rhs *Organ) bool {
+	return lhs.Name == rhs.Name
+}
+
+func OrganNameElementsEqualFunc(lhs, rhs Organs) bool {
+	if len(lhs) != len(rhs) {
+		return false
+	}
+	for i, v := range lhs {
+		if !OrganNamesEqual(v, rhs[i]) {
+			return false
+		}
+	}
+	return true
+}
+
 func OrganWeightElementsEqual(lhs, rhs Organs) bool {
 	if len(lhs) != len(rhs) {
 		return false
 	}
 	for i, v := range lhs {
 		if v.Weight != rhs[i].Weight {
+			return false
+		}
+	}
+	return true
+}
+
+func OrganWeightsEqual(lhs, rhs *Organ) bool {
+	return lhs.Weight == rhs.Weight
+}
+
+func OrganWeightElementsEqualFunc(lhs, rhs Organs) bool {
+	if len(lhs) != len(rhs) {
+		return false
+	}
+	for i, v := range lhs {
+		if !OrganWeightsEqual(v, rhs[i]) {
 			return false
 		}
 	}
@@ -190,12 +222,28 @@ func OrganElementsEqual(lhs, rhs Organs) bool {
 	return true
 }
 
-func OrganElementsEqualClosure(lhs, rhs Organs, eq func(l, r Organ) bool) bool {
+func OrgansEqual(lhs, rhs *Organ) bool {
+	return lhs.Name == rhs.Name && lhs.Weight == rhs.Weight
+}
+
+func OrganElementsEqualFunc(lhs, rhs Organs) bool {
 	if len(lhs) != len(rhs) {
 		return false
 	}
 	for i, v := range lhs {
-		if !eq(*v, *rhs[i]) {
+		if !OrgansEqual(v, rhs[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func OrganElementsEqualClosure(lhs, rhs Organs, eq func(l, r *Organ) bool) bool {
+	if len(lhs) != len(rhs) {
+		return false
+	}
+	for i, v := range lhs {
+		if !eq(v, rhs[i]) {
 			return false
 		}
 	}
@@ -227,10 +275,16 @@ func BenchmarkOrganNameElementsEqualHardcoded(b *testing.B) {
 	}
 }
 
+func BenchmarkOrganNameElementsEqualFunc(b *testing.B) {
+	for i := 0; i != b.N; i++ {
+		OrganNameElementsEqualFunc(lhs_organs, rhs_organs)
+	}
+}
+
 func BenchmarkOrganNameElementsEqualClosure(b *testing.B) {
 	for i := 0; i != b.N; i++ {
 		OrganElementsEqualClosure(lhs_organs, rhs_organs,
-			func(l, r Organ) bool { return l.Name == r.Name })
+			func(l, r *Organ) bool { return l.Name == r.Name })
 	}
 }
 
@@ -246,10 +300,16 @@ func BenchmarkOrganWeightElementsEqualHardcoded(b *testing.B) {
 	}
 }
 
+func BenchmarkOrganWeightElementsEqualFunc(b *testing.B) {
+	for i := 0; i != b.N; i++ {
+		OrganWeightElementsEqualFunc(lhs_organs, rhs_organs)
+	}
+}
+
 func BenchmarkOrganWeightElementsEqualClosure(b *testing.B) {
 	for i := 0; i != b.N; i++ {
 		OrganElementsEqualClosure(lhs_organs, rhs_organs,
-			func(l, r Organ) bool { return l.Weight == r.Weight })
+			func(l, r *Organ) bool { return l.Weight == r.Weight })
 	}
 }
 
@@ -265,10 +325,16 @@ func BenchmarkOrganElementsEqualHardcoded(b *testing.B) {
 	}
 }
 
+func BenchmarkOrganElementsEqualFunc(b *testing.B) {
+	for i := 0; i != b.N; i++ {
+		OrganElementsEqualFunc(lhs_organs, rhs_organs)
+	}
+}
+
 func BenchmarkOrganElementsEqualClosure(b *testing.B) {
 	for i := 0; i != b.N; i++ {
 		OrganElementsEqualClosure(lhs_organs, rhs_organs,
-			func(l, r Organ) bool { return l.Name == r.Name && l.Weight == r.Weight })
+			func(l, r *Organ) bool { return l.Name == r.Name && l.Weight == r.Weight })
 	}
 }
 
