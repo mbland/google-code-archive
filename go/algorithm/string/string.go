@@ -2,14 +2,14 @@
 
 // Standard Template Library-like algorithms not available in the go standard
 // libraries or any other known, available packages.
-package algorithm
+package string
 
 import "sort"
 
 // Returns true if lhs and rhs contain identical string values.
 // Lower bound: O(1) when lengths are different.
 // Upper bound: O(len(lhs)) when all elements are equal.
-func ElementsEqualStrings(lhs, rhs []string) bool {
+func ElementsEqual(lhs, rhs []string) bool {
 	if len(lhs) != len(rhs) {
 		return false
 	}
@@ -22,7 +22,7 @@ func ElementsEqualStrings(lhs, rhs []string) bool {
 }
 
 // Returns a sorted copy of l.
-func SortedCopyStrings(l []string) (r []string) {
+func SortedCopy(l []string) (r []string) {
 	r = make([]string, 0, len(l))
 	r = append(r, l...)
 	sort.Strings(r)
@@ -31,7 +31,7 @@ func SortedCopyStrings(l []string) (r []string) {
 
 // Finds strings in lhs not present in rhs. lhs and rhs must be sorted.
 // Lower and upper bound: O(len(lhs))
-func SetDifferenceStrings(lhs, rhs []string) []string {
+func SetDifference(lhs, rhs []string) []string {
 	r := make([]string, 0, len(lhs))
 	i := 0
 	for j := 0; i != len(lhs) && j != len(rhs); {
@@ -51,7 +51,7 @@ func SetDifferenceStrings(lhs, rhs []string) []string {
 // Returns elements of lhs also contained in rhs. The order of elements in lhs
 // is preserved. rhs must be sorted.
 // Lower and upper bound: O(len(lhs) log len(rhs)).
-func SetIntersectionUnorderedStrings(lhs, rhs []string) (r []string) {
+func SetIntersectionUnordered(lhs, rhs []string) (r []string) {
 	r = make([]string, 0, len(lhs))
 	for _, v := range lhs {
 		if i := sort.SearchStrings(rhs, v); i != len(rhs) && rhs[i] == v {

@@ -3,12 +3,13 @@
 // Implementation of algorithm interfaces for []string, plus convenience
 // wrappers for algorithms.
 
-package algorithm
+package string
 
+import "code.google.com/p/mike-bland/go/experimental/algorithm"
 import "sort"
 
 // Returns a sorted copy of l.
-func SortedCopyStrings(l []string) (r []string) {
+func SortedCopy(l []string) (r []string) {
 	r = make([]string, 0, len(l))
 	r = append(r, l...)
 	sort.Strings(r)
@@ -80,21 +81,21 @@ func (s *StringSearcher) Search(i int) int {
 }
 
 // Returns true if lhs and rhs contain identical string values.
-func ElementsEqualStrings(lhs, rhs []string) bool {
-	return ElementsEqual(&StringComparator{lhs, rhs})
+func ElementsEqual(lhs, rhs []string) bool {
+	return algorithm.ElementsEqual(&StringComparator{lhs, rhs})
 }
 
 // Finds strings in lhs not present in rhs. lhs and rhs must be sorted.
-func SetDifferenceStrings(lhs, rhs []string) []string {
+func SetDifference(lhs, rhs []string) []string {
 	c := NewStringCollector(lhs, rhs)
-	SetDifference(c)
+	algorithm.SetDifference(c)
 	return c.Result
 }
 
 // Returns elements of lhs also contained in rhs. The order of elements in lhs
 // is preserved. rhs must be sorted.
-func SetIntersectionUnorderedStrings(lhs, rhs []string) []string {
+func SetIntersectionUnordered(lhs, rhs []string) []string {
 	s := NewStringSearcher(lhs, rhs)
-	SetIntersectionUnordered(s)
+	algorithm.SetIntersectionUnordered(s)
 	return s.Result
 }

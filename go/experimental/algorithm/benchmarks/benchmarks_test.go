@@ -3,7 +3,9 @@
 package algorithm
 
 import (
-	std "code.google.com/p/mike-bland/go/algorithm"
+	std "code.google.com/p/mike-bland/go/algorithm/string"
+	"code.google.com/p/mike-bland/go/experimental/algorithm"
+	exp "code.google.com/p/mike-bland/go/experimental/algorithm/string"
 	"testing"
 )
 
@@ -36,37 +38,37 @@ var (
 
 func BenchmarkElementsEqualStringsStd(b *testing.B) {
 	for i := 0; i != b.N; i++ {
-		std.ElementsEqualStrings(lhs, rhs)
+		std.ElementsEqual(lhs, rhs)
 	}
 }
 
 func BenchmarkElementsEqualStringsExp(b *testing.B) {
 	for i := 0; i != b.N; i++ {
-		ElementsEqualStrings(lhs, rhs)
+		exp.ElementsEqual(lhs, rhs)
 	}
 }
 
 func BenchmarkSetDifferenceStringsStd(b *testing.B) {
 	for i := 0; i != b.N; i++ {
-		std.SetDifferenceStrings(lhs, rhs)
+		std.SetDifference(lhs, rhs)
 	}
 }
 
 func BenchmarkSetDifferenceStringsExp(b *testing.B) {
 	for i := 0; i != b.N; i++ {
-		SetDifferenceStrings(lhs, rhs)
+		exp.SetDifference(lhs, rhs)
 	}
 }
 
 func BenchmarkSetIntersectionUnorderedStringsStd(b *testing.B) {
 	for i := 0; i != b.N; i++ {
-		std.SetIntersectionUnorderedStrings(lhs, rhs)
+		std.SetIntersectionUnordered(lhs, rhs)
 	}
 }
 
 func BenchmarkSetIntersectionUnorderedStringsExp(b *testing.B) {
 	for i := 0; i != b.N; i++ {
-		SetIntersectionUnorderedStrings(lhs, rhs)
+		exp.SetIntersectionUnordered(lhs, rhs)
 	}
 }
 
@@ -215,7 +217,7 @@ func BenchmarkOrganNameElementsEqualHardcoded(b *testing.B) {
 
 func BenchmarkOrganNameElementsEqualGeneric(b *testing.B) {
 	for i := 0; i != b.N; i++ {
-		ElementsEqual(NewOrganNameComparator(lhs_organs, rhs_organs))
+		algorithm.ElementsEqual(NewOrganNameComparator(lhs_organs, rhs_organs))
 	}
 }
 
@@ -227,7 +229,7 @@ func BenchmarkOrganWeightElementsEqualHardcoded(b *testing.B) {
 
 func BenchmarkOrganWeightElementsEqualGeneric(b *testing.B) {
 	for i := 0; i != b.N; i++ {
-		ElementsEqual(NewOrganWeightComparator(lhs_organs, rhs_organs))
+		algorithm.ElementsEqual(NewOrganWeightComparator(lhs_organs, rhs_organs))
 	}
 }
 
@@ -239,6 +241,6 @@ func BenchmarkOrganElementsEqualHardcoded(b *testing.B) {
 
 func BenchmarkOrganElementsEqualGeneric(b *testing.B) {
 	for i := 0; i != b.N; i++ {
-		ElementsEqual(NewOrganComparator(lhs_organs, rhs_organs))
+		algorithm.ElementsEqual(NewOrganComparator(lhs_organs, rhs_organs))
 	}
 }

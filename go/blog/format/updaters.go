@@ -5,7 +5,7 @@ package format
 import (
 	"bufio"
 	"bytes"
-	"code.google.com/p/mike-bland/go/algorithm"
+	str_alg "code.google.com/p/mike-bland/go/algorithm/string"
 	"fmt"
 	"io"
 	"os"
@@ -346,9 +346,9 @@ func (tocu *TableOfContentsUpdater) ParseLineSecondPass(
 // nothing changed.
 func (tocu *TableOfContentsUpdater) UpdateMessage() (msg string) {
 	msg = ""
-	prev := algorithm.SortedCopyStrings(tocu.prev)
-	curr := algorithm.SortedCopyStrings(tocu.curr)
-	diff := algorithm.SetDifferenceStrings(curr, prev)
+	prev := str_alg.SortedCopy(tocu.prev)
+	curr := str_alg.SortedCopy(tocu.curr)
+	diff := str_alg.SetDifference(curr, prev)
 	if n := len(diff); n != 0 {
 		plural := ""
 		if n != 1 {
@@ -357,10 +357,10 @@ func (tocu *TableOfContentsUpdater) UpdateMessage() (msg string) {
 		msg = fmt.Sprintf("%d new/changed headline%s", n, plural)
 	}
 
-	before := algorithm.SetIntersectionUnorderedStrings(tocu.prev, curr)
-	after := algorithm.SetIntersectionUnorderedStrings(tocu.curr, prev)
+	before := str_alg.SetIntersectionUnordered(tocu.prev, curr)
+	after := str_alg.SetIntersectionUnordered(tocu.curr, prev)
 
-	if !algorithm.ElementsEqualStrings(before, after) {
+	if !str_alg.ElementsEqual(before, after) {
 		if len(msg) != 0 {
 			msg += ", "
 		}
