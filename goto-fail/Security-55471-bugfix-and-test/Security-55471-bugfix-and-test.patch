@@ -1,0 +1,495 @@
+diff -uNr Security-55471/libsecurity_ssl/lib/sslDigests.h Security-55471.fixed/libsecurity_ssl/lib/sslDigests.h
+--- Security-55471/libsecurity_ssl/lib/sslDigests.h	2013-08-09 20:41:07.000000000 -0400
++++ Security-55471.fixed/libsecurity_ssl/lib/sslDigests.h	2014-04-13 23:56:43.000000000 -0400
+@@ -28,27 +28,6 @@
+ #ifndef	_SSL_DIGESTS_H_
+ #define _SSL_DIGESTS_H_	1
+ 
+-#include <MacTypes.h>
+-#include "sslMemory.h"
+ #include "tls_digest.h"
+ 
+-#ifdef __cplusplus
+-extern "C" {
+-#endif
+-
+-extern OSStatus CloneHashState(
+-	const HashReference *ref,
+-	const SSLBuffer *state,
+-	SSLBuffer *newState);
+-extern OSStatus ReadyHash(
+-	const HashReference *ref, 
+-	SSLBuffer *state);
+-extern OSStatus CloseHash(
+-	const HashReference *ref, 
+-	SSLBuffer *state);
+-
+-#ifdef __cplusplus
+-}
+-#endif
+-
+ #endif	/* _SSL_DIGESTS_H_ */
+diff -uNr Security-55471/libsecurity_ssl/lib/sslKeyExchange.c Security-55471.fixed/libsecurity_ssl/lib/sslKeyExchange.c
+--- Security-55471/libsecurity_ssl/lib/sslKeyExchange.c	2013-08-09 20:41:07.000000000 -0400
++++ Security-55471.fixed/libsecurity_ssl/lib/sslKeyExchange.c	2014-04-13 23:56:43.000000000 -0400
+@@ -243,7 +243,7 @@
+ SSLSignServerKeyExchangeTls12(SSLContext *ctx, SSLSignatureAndHashAlgorithm sigAlg, SSLBuffer exchangeParams, SSLBuffer signature, size_t *actSigLen)
+ {
+     OSStatus        err;
+-    SSLBuffer       hashOut, hashCtx, clientRandom, serverRandom;
++    SSLBuffer       hashOut, clientRandom, serverRandom;
+     uint8_t         hashes[SSL_MAX_DIGEST_LEN];
+     SSLBuffer       signedHashes;
+     uint8_t			*dataToSign;
+@@ -252,7 +252,6 @@
+     SecAsn1AlgId        algId;
+ 
+ 	signedHashes.data = 0;
+-    hashCtx.data = 0;
+ 
+     clientRandom.data = ctx->clientRandom;
+     clientRandom.length = SSL_CLIENT_SRVR_RAND_SIZE;
+@@ -283,16 +282,10 @@
+     hashOut.data = hashes;
+     hashOut.length = hashRef->digestSize;
+ 
+-    if ((err = ReadyHash(hashRef, &hashCtx)) != 0)
+-        goto fail;
+-    if ((err = hashRef->update(&hashCtx, &clientRandom)) != 0)
+-        goto fail;
+-    if ((err = hashRef->update(&hashCtx, &serverRandom)) != 0)
+-        goto fail;
+-    if ((err = hashRef->update(&hashCtx, &exchangeParams)) != 0)
+-        goto fail;
+-    if ((err = hashRef->final(&hashCtx, &hashOut)) != 0)
++    if ((err = HashHandshake(hashRef, &clientRandom, &serverRandom,
++         &exchangeParams, &hashOut)) != 0) {
+         goto fail;
++    }
+ 
+     if(sigAlg.signature==SSL_SignatureAlgorithmRSA) {
+         err = sslRsaSign(ctx,
+@@ -321,7 +314,6 @@
+ 
+ fail:
+     SSLFreeBuffer(&signedHashes);
+-    SSLFreeBuffer(&hashCtx);
+     return err;
+ }
+ 
+@@ -330,12 +322,10 @@
+ {
+     OSStatus        err;
+     uint8_t         hashes[SSL_SHA1_DIGEST_LEN + SSL_MD5_DIGEST_LEN];
+-    SSLBuffer       clientRandom,serverRandom,hashCtx, hash;
++    SSLBuffer       clientRandom,serverRandom, hash;
+ 	uint8_t			*dataToSign;
+ 	size_t			dataToSignLen;
+ 
+-    hashCtx.data = 0;
+-
+     /* cook up hash(es) for raw sign */
+     clientRandom.data   = ctx->clientRandom;
+     clientRandom.length = SSL_CLIENT_SRVR_RAND_SIZE;
+@@ -349,18 +339,10 @@
+         hash.data = &hashes[0];
+         hash.length = SSL_MD5_DIGEST_LEN;
+ 
+-        if ((err = ReadyHash(&SSLHashMD5, &hashCtx)) != 0)
+-            goto fail;
+-        if ((err = SSLHashMD5.update(&hashCtx, &clientRandom)) != 0)
+-            goto fail;
+-        if ((err = SSLHashMD5.update(&hashCtx, &serverRandom)) != 0)
+-            goto fail;
+-        if ((err = SSLHashMD5.update(&hashCtx, &exchangeParams)) != 0)
+-            goto fail;
+-        if ((err = SSLHashMD5.final(&hashCtx, &hash)) != 0)
+-            goto fail;
+-        if ((err = SSLFreeBuffer(&hashCtx)) != 0)
++        if ((err = HashHandshake(&SSLHashMD5, &clientRandom, &serverRandom,
++             &exchangeParams, &hash)) != 0) {
+             goto fail;
++        }
+     }
+     else {
+         /* DSA - just use the SHA1 hash */
+@@ -369,19 +351,11 @@
+     }
+     hash.data = &hashes[SSL_MD5_DIGEST_LEN];
+     hash.length = SSL_SHA1_DIGEST_LEN;
+-    if ((err = ReadyHash(&SSLHashSHA1, &hashCtx)) != 0)
+-    goto fail;
+-    if ((err = SSLHashSHA1.update(&hashCtx, &clientRandom)) != 0)
+-    goto fail;
+-    if ((err = SSLHashSHA1.update(&hashCtx, &serverRandom)) != 0)
+-    goto fail;
+-    if ((err = SSLHashSHA1.update(&hashCtx, &exchangeParams)) != 0)
+-    goto fail;
+-    if ((err = SSLHashSHA1.final(&hashCtx, &hash)) != 0)
+-    goto fail;
+-    if ((err = SSLFreeBuffer(&hashCtx)) != 0)
+-    goto fail;
+ 
++    if ((err = HashHandshake(&SSLHashSHA1, &clientRandom, &serverRandom,
++         &exchangeParams, &hash)) != 0) {
++        goto fail;
++    }
+ 
+     err = sslRawSign(ctx,
+                      ctx->signingPrivKeyRef,
+@@ -395,8 +369,6 @@
+     }
+ 
+ fail:
+-    SSLFreeBuffer(&hashCtx);
+-
+     return err;
+ }
+ 
+@@ -576,14 +548,13 @@
+                                  uint8_t *signature, UInt16 signatureLen)
+ {
+     OSStatus        err;
+-    SSLBuffer       hashOut, hashCtx, clientRandom, serverRandom;
++    SSLBuffer       hashOut, clientRandom, serverRandom;
+     uint8_t         hashes[SSL_SHA1_DIGEST_LEN + SSL_MD5_DIGEST_LEN];
+     SSLBuffer       signedHashes;
+     uint8_t			*dataToSign;
+ 	size_t			dataToSignLen;
+ 
+ 	signedHashes.data = 0;
+-    hashCtx.data = 0;
+ 
+     clientRandom.data = ctx->clientRandom;
+     clientRandom.length = SSL_CLIENT_SRVR_RAND_SIZE;
+@@ -598,16 +569,10 @@
+ 		hashOut.data = hashes;
+ 		hashOut.length = SSL_MD5_DIGEST_LEN;
+ 		
+-		if ((err = ReadyHash(&SSLHashMD5, &hashCtx)) != 0)
+-			goto fail;
+-		if ((err = SSLHashMD5.update(&hashCtx, &clientRandom)) != 0)
+-			goto fail;
+-		if ((err = SSLHashMD5.update(&hashCtx, &serverRandom)) != 0)
+-			goto fail;
+-		if ((err = SSLHashMD5.update(&hashCtx, &signedParams)) != 0)
+-			goto fail;
+-		if ((err = SSLHashMD5.final(&hashCtx, &hashOut)) != 0)
++		if ((err = HashHandshake(&SSLHashMD5, &clientRandom, &serverRandom,
++         &signedParams, &hashOut)) != 0) {
+ 			goto fail;
++    }
+ 	}
+ 	else {
+ 		/* DSA, ECDSA - just use the SHA1 hash */
+@@ -616,21 +581,11 @@
+ 	}
+ 
+ 	hashOut.data = hashes + SSL_MD5_DIGEST_LEN;
+-    hashOut.length = SSL_SHA1_DIGEST_LEN;
+-    if ((err = SSLFreeBuffer(&hashCtx)) != 0)
+-        goto fail;
+-
+-    if ((err = ReadyHash(&SSLHashSHA1, &hashCtx)) != 0)
+-        goto fail;
+-    if ((err = SSLHashSHA1.update(&hashCtx, &clientRandom)) != 0)
+-        goto fail;
+-    if ((err = SSLHashSHA1.update(&hashCtx, &serverRandom)) != 0)
+-        goto fail;
+-    if ((err = SSLHashSHA1.update(&hashCtx, &signedParams)) != 0)
+-        goto fail;
+-        goto fail;
+-    if ((err = SSLHashSHA1.final(&hashCtx, &hashOut)) != 0)
+-        goto fail;
++  hashOut.length = SSL_SHA1_DIGEST_LEN;
++	if ((err = HashHandshake(&SSLHashSHA1, &clientRandom, &serverRandom,
++       &signedParams, &hashOut)) != 0) {
++		goto fail;
++  }
+ 
+ 	err = sslRawVerify(ctx,
+                        ctx->peerPubKey,
+@@ -646,7 +601,6 @@
+ 
+ fail:
+     SSLFreeBuffer(&signedHashes);
+-    SSLFreeBuffer(&hashCtx);
+     return err;
+ 
+ }
+@@ -656,7 +610,7 @@
+                                  uint8_t *signature, UInt16 signatureLen)
+ {
+     OSStatus        err;
+-    SSLBuffer       hashOut, hashCtx, clientRandom, serverRandom;
++    SSLBuffer       hashOut, clientRandom, serverRandom;
+     uint8_t         hashes[SSL_MAX_DIGEST_LEN];
+     SSLBuffer       signedHashes;
+     uint8_t			*dataToSign;
+@@ -665,7 +619,6 @@
+     SecAsn1AlgId        algId;
+ 
+ 	signedHashes.data = 0;
+-    hashCtx.data = 0;
+ 
+     clientRandom.data = ctx->clientRandom;
+     clientRandom.length = SSL_CLIENT_SRVR_RAND_SIZE;
+@@ -696,16 +649,10 @@
+     hashOut.data = hashes;
+     hashOut.length = hashRef->digestSize;
+ 
+-    if ((err = ReadyHash(hashRef, &hashCtx)) != 0)
+-        goto fail;
+-    if ((err = hashRef->update(&hashCtx, &clientRandom)) != 0)
+-        goto fail;
+-    if ((err = hashRef->update(&hashCtx, &serverRandom)) != 0)
+-        goto fail;
+-    if ((err = hashRef->update(&hashCtx, &signedParams)) != 0)
+-        goto fail;
+-    if ((err = hashRef->final(&hashCtx, &hashOut)) != 0)
++    if ((err = HashHandshake(hashRef, &clientRandom, &serverRandom,
++         &signedParams, &hashOut)) != 0) {
+         goto fail;
++    }
+ 
+     if(sigAlg.signature==SSL_SignatureAlgorithmRSA) {
+         err = sslRsaVerify(ctx,
+@@ -732,7 +679,6 @@
+ 
+ fail:
+     SSLFreeBuffer(&signedHashes);
+-    SSLFreeBuffer(&hashCtx);
+     return err;
+ 
+ }
+diff -uNr Security-55471/libsecurity_ssl/lib/tls_digest.c Security-55471.fixed/libsecurity_ssl/lib/tls_digest.c
+--- Security-55471/libsecurity_ssl/lib/tls_digest.c	2013-08-09 20:41:07.000000000 -0400
++++ Security-55471.fixed/libsecurity_ssl/lib/tls_digest.c	2014-04-13 23:56:43.000000000 -0400
+@@ -480,6 +480,27 @@
+ 
+ #endif
+ 
++OSStatus HashHandshake(const HashReference* hashRef,
++    SSLBuffer *clientRandom, SSLBuffer *serverRandom,
++    SSLBuffer *exchangeParams, SSLBuffer *hashOut) {
++  SSLBuffer hashCtx;
++  OSStatus err = 0;
++  hashCtx.data = 0;
++  if ((err = ReadyHash(hashRef, &hashCtx)) != 0)
++      goto fail;
++  if ((err = hashRef->update(&hashCtx, clientRandom)) != 0)
++      goto fail;
++  if ((err = hashRef->update(&hashCtx, serverRandom)) != 0)
++      goto fail;
++  if ((err = hashRef->update(&hashCtx, exchangeParams)) != 0)
++      goto fail;
++  err = hashRef->final(&hashCtx, hashOut);
++
++fail:
++  SSLFreeBuffer(&hashCtx);
++  return err;
++}
++
+ /*
+  * These are the handles by which the bulk of digesting work
+  * is done.
+diff -uNr Security-55471/libsecurity_ssl/lib/tls_digest.h Security-55471.fixed/libsecurity_ssl/lib/tls_digest.h
+--- Security-55471/libsecurity_ssl/lib/tls_digest.h	2013-08-09 20:41:07.000000000 -0400
++++ Security-55471.fixed/libsecurity_ssl/lib/tls_digest.h	2014-04-13 23:56:43.000000000 -0400
+@@ -28,6 +28,8 @@
+ #ifndef	_TLS_DIGEST_H_
+ #define _TLS_DIGEST_H_	1
+ 
++#include <MacTypes.h>
++#include "sslMemory.h"
+ #include "sslTypes.h"
+ 
+ #ifdef __cplusplus
+@@ -72,6 +74,21 @@
+ extern const HashReference SSLHashSHA256;
+ extern const HashReference SSLHashSHA384;
+ 
++extern OSStatus CloneHashState(
++	const HashReference *ref,
++	const SSLBuffer *state,
++	SSLBuffer *newState);
++extern OSStatus ReadyHash(
++	const HashReference *ref, 
++	SSLBuffer *state);
++extern OSStatus CloseHash(
++	const HashReference *ref, 
++	SSLBuffer *state);
++
++/* Core of the handshake algorithm */
++extern OSStatus HashHandshake(const HashReference* hashRef,
++    SSLBuffer *clientRandom, SSLBuffer *serverRandom,
++    SSLBuffer *exchangeParams, SSLBuffer *hashOut);
+ 
+ #ifdef __cplusplus
+ }
+diff -uNr Security-55471/libsecurity_ssl/lib/tls_digest_test.c Security-55471.fixed/libsecurity_ssl/lib/tls_digest_test.c
+--- Security-55471/libsecurity_ssl/lib/tls_digest_test.c	1969-12-31 19:00:00.000000000 -0500
++++ Security-55471.fixed/libsecurity_ssl/lib/tls_digest_test.c	2014-04-13 23:57:12.000000000 -0400
+@@ -0,0 +1,162 @@
++/*
++ * Test file for the TLS handshake algorithm
++ *
++ * Author:  Mike Bland (mbland@acm.org, http://mike-bland.com/)
++ * Date:    2014-02-24
++ * License: Creative Commons Attribution 4.0 International (CC By 4.0)
++ *          http://creativecommons.org/licenses/by/4.0/deed.en_US
++ */
++
++#include "tls_digest.h"
++/* Needed for the __security_debug() stub function */
++#include "../../utilities/src/debugging.h"
++
++#include <stdlib.h>
++#include <stdio.h>
++
++enum HandshakeResult {
++    SUCCESS = 0,
++    INIT_FAILURE = 1,
++    UPDATE_CLIENT_FAILURE = 2,
++    UPDATE_SERVER_FAILURE = 3,
++    UPDATE_PARAMS_FAILURE = 4,
++    FINAL_FAILURE = 5,
++};
++
++static const char* const HandshakeResultString(enum HandshakeResult r) {
++  switch (r) {
++#define HANDSHAKE_RESULT_CASE(x) case x:\
++    return #x;\
++    break
++  HANDSHAKE_RESULT_CASE(SUCCESS);
++  HANDSHAKE_RESULT_CASE(INIT_FAILURE);
++  HANDSHAKE_RESULT_CASE(UPDATE_CLIENT_FAILURE);
++  HANDSHAKE_RESULT_CASE(UPDATE_SERVER_FAILURE);
++  HANDSHAKE_RESULT_CASE(UPDATE_PARAMS_FAILURE);
++  HANDSHAKE_RESULT_CASE(FINAL_FAILURE);
++#undef HANDSHAKE_RESULT_CASE
++  default:
++    break;
++  }
++  fprintf(stderr, "%s:%d: %s: FATAL ERROR: unknown HandshakeResult value: "
++                  "%d\n", __FILE__, __LINE__, __func__, r);
++  abort();
++  return 0;
++}
++
++typedef struct
++{
++    HashReference ref;
++    SSLBuffer client;
++    SSLBuffer server;
++    SSLBuffer params;
++    SSLBuffer output;
++    const char *test_case_name;
++    enum HandshakeResult expected;
++} HashHandshakeTestFixture;
++
++static int HashHandshakeTestFailInit(SSLBuffer *digestCtx) {
++  return INIT_FAILURE;
++}
++
++/* As a complete contrivance for the sake of this proof-of-concept, we'll
++ * return a failure based on data->length.
++ */
++static int HashHandshakeTestUpdate(SSLBuffer *digestCtx,
++    const SSLBuffer *data) {
++  return (int)data->length;
++}
++
++static int HashHandshakeTestFailFinal(SSLBuffer *digestCtx,
++    SSLBuffer *digest) {
++  return FINAL_FAILURE;
++}
++
++static HashHandshakeTestFixture MakeFixture(const char *test_case_name) {
++  HashHandshakeTestFixture fixture;
++  fixture.ref = SSLHashNull;
++  fixture.ref.update = HashHandshakeTestUpdate;
++  fixture.test_case_name = test_case_name; 
++  fixture.client.length = SUCCESS;
++  fixture.server.length = SUCCESS;
++  fixture.params.length = SUCCESS;
++  return fixture;
++}
++
++/* Executes the handshake and returns zero if the result matches expected, one
++ * otherwise. */
++static int ExecuteHandshake(HashHandshakeTestFixture fixture) {
++  const enum HandshakeResult actual = HashHandshake(
++      &fixture.ref, &fixture.client, &fixture.server, &fixture.params,
++      &fixture.output);
++
++  if (actual != fixture.expected) {
++    printf("%s failed: expected %s, received %s\n", fixture.test_case_name,
++           HandshakeResultString(fixture.expected),
++           HandshakeResultString(actual));
++    return 1;
++  }
++  return 0;
++}
++
++static int TestHandshakeSuccess() {
++  HashHandshakeTestFixture fixture = MakeFixture(__func__);
++  fixture.expected = SUCCESS;
++  return ExecuteHandshake(fixture);
++}
++
++static int TestHandshakeInitFailure() {
++  HashHandshakeTestFixture fixture = MakeFixture(__func__);
++  fixture.expected = INIT_FAILURE;
++  fixture.ref.init = HashHandshakeTestFailInit;
++  return ExecuteHandshake(fixture);
++}
++
++static int TestHandshakeUpdateClientFailure() {
++  HashHandshakeTestFixture fixture = MakeFixture(__func__);
++  fixture.expected = UPDATE_CLIENT_FAILURE;
++  fixture.client.length = UPDATE_CLIENT_FAILURE;
++  return ExecuteHandshake(fixture);
++}
++
++static int TestHandshakeUpdateServerFailure() {
++  HashHandshakeTestFixture fixture = MakeFixture(__func__);
++  fixture.expected = UPDATE_SERVER_FAILURE;
++  fixture.server.length = UPDATE_SERVER_FAILURE;
++  return ExecuteHandshake(fixture);
++}
++
++static int TestHandshakeUpdateParamsFailure() {
++  HashHandshakeTestFixture fixture = MakeFixture(__func__);
++  fixture.expected = UPDATE_PARAMS_FAILURE;
++  fixture.params.length = UPDATE_PARAMS_FAILURE;
++  return ExecuteHandshake(fixture);
++}
++
++static int TestHandshakeFinalFailure() {
++  HashHandshakeTestFixture fixture = MakeFixture(__func__);
++  fixture.expected = FINAL_FAILURE;
++  fixture.ref.final = HashHandshakeTestFailFinal;
++  return ExecuteHandshake(fixture);
++}
++
++/* A stub to allow linking this example */
++void __security_debug(CFStringRef scope,
++                      const char *function, const char *file, int line,
++                      CFStringRef format, ...) {
++}
++
++int main(int argc, char *argv[]) {
++  int num_failed = TestHandshakeSuccess() +
++      TestHandshakeInitFailure() +
++      TestHandshakeUpdateClientFailure() +
++      TestHandshakeUpdateServerFailure() +
++      TestHandshakeUpdateParamsFailure() +
++      TestHandshakeFinalFailure();
++
++  if (num_failed != 0) {
++    printf("%d test%s failed\n", num_failed, num_failed != 1 ? "s" : "");
++    return EXIT_FAILURE;
++  }
++  return EXIT_SUCCESS;
++}
