@@ -13,7 +13,7 @@
  * License: Creative Commons Attribution 4.0 International (CC By 4.0)
  *          http://creativecommons.org/licenses/by/4.0/deed.en_US
  * URL:
- *   https://code.google.com/p/mike-bland/source/browse/heartbleed/build.sh
+ *   https://code.google.com/p/mike-bland/source/browse/heartbleed/heartbleed_test.c
  *   http://goo.gl/w1bGyR
  *
  * BUILDING AND RUNNING
