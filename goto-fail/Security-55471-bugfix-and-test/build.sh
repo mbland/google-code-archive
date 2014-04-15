@@ -97,8 +97,11 @@ do
 done
 
 BUGFIX_AND_TEST_PATCH=Security-55471-bugfix-and-test.patch
+TLS_DIGEST=${LIBSECURITY_SSL_ROOT}/lib/tls_digest.c
 
-if test ! -f ${LIBSECURITY_SSL_ROOT}/lib/tls_digest_test.c; then
+if $(grep -q HashHandshake ${TLS_DIGEST}); then
+  echo "Patch already applied..."
+else
   if test ! -f ${BUGFIX_AND_TEST_PATCH}; then
     echo "${BUGFIX_AND_TEST_PATCH} not present in this directory"
     echo "Aborting..."
