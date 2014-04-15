@@ -12,10 +12,18 @@
  * Date:    2014-04-12
  * License: Creative Commons Attribution 4.0 International (CC By 4.0)
  *          http://creativecommons.org/licenses/by/4.0/deed.en_US
+ * URL:
+ *   https://code.google.com/p/mike-bland/source/browse/heartbleed/build.sh
+ *   http://goo.gl/w1bGyR
  *
  * BUILDING AND RUNNING
  * --------------------
- * As per CVE-2014-0160, download the following tarballs:
+ * Download the build.sh script if you don't want to do everything by hand:
+ *
+ * https://code.google.com/p/mike-bland/source/browse/heartbleed/build.sh
+ * http://goo.gl/erKNJm
+ *
+ * Otherwise: As per CVE-2014-0160, download the following tarballs:
  *
  *   The version that introduced the Heartbleed bug:
  *   http://www.openssl.org/source/openssl-1.0.1-beta1.tar.gz
