@@ -51,7 +51,7 @@
 # compile sslKeyExchange.c, and added a symlink from that directory to the
 # unpacked CF-855.11 source to avoid having to stub CoreFoundation headers.
 
-MAC_OS_SDK_VERSION=MacOSX10.9
+MAC_OS_SDK_VERSION=10.9
 LIBSECURITY_SSL_ROOT=Security-55471/libsecurity_ssl
 USAGE="Usage: $0 [help|clean]"
 
@@ -149,9 +149,9 @@ COMPILE="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xcto
  -Wno-four-char-constants -Wno-conversion -Wno-constant-conversion\
  -Wno-int-conversion -Wno-bool-conversion -Wno-enum-conversion\
  -Wshorten-64-to-32 -Wpointer-sign -Wno-newline-eof -DDEBUG=1 -isysroot\
- /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/${MAC_OS_SDK_VERSION}.sdk\
+ /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX${MAC_OS_SDK_VERSION}.sdk\
  -fasm-blocks -fstrict-aliasing -Wno-deprecated-declarations\
- -mmacosx-version-min=10.9 -g -Wno-sign-conversion\
+ -mmacosx-version-min=${MAC_OS_SDK_VERSION} -g -Wno-sign-conversion\
  -I${LIBSECURITY_SSL_ROOT}/build/libsecurity_ssl.build/Debug/libsecurity_ssl.build/libsecurity_ssl.hmap\
  -I${LIBSECURITY_SSL_ROOT}/build/Debug/include\
  -I${LIBSECURITY_SSL_ROOT}\
@@ -162,7 +162,7 @@ COMPILE="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xcto
  -I${LIBSECURITY_SSL_ROOT}/../libsecurity_keychain\
  -I${LIBSECURITY_SSL_ROOT}/../libsecurity_keychain/libDER\
  -I${LIBSECURITY_SSL_ROOT}/build/Debug\
- -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/${MAC_OS_SDK_VERSION}.sdk/System/Library/Frameworks/CoreServices.framework/Frameworks/CarbonCore.framework/Headers\
+ -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX${MAC_OS_SDK_VERSION}.sdk/System/Library/Frameworks/CoreServices.framework/Frameworks/CarbonCore.framework/Headers\
  -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include\
  -I${LIBSECURITY_SSL_ROOT}/build/libsecurity_ssl.build/Debug/libsecurity_ssl.build/DerivedSources/x86_64\
  -I${LIBSECURITY_SSL_ROOT}/build/libsecurity_ssl.build/Debug/libsecurity_ssl.build/DerivedSources\
