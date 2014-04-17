@@ -3,6 +3,9 @@
 # Build script for the tls_digest_test.c example and the proof-of-concept
 # HashHandshake() function update to sslKeyExchange.c
 #
+# Part of the complete "goto fail" patch-and-test demonstration package:
+# http://goo.gl/tnvIUm
+#
 # Author:  Mike Bland (mbland@acm.org, http://mike-bland.com/)
 # Date:    2014-02-24
 # License: Creative Commons Attribution 4.0 International (CC By 4.0)
