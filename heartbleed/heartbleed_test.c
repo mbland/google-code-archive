@@ -3,10 +3,11 @@
  * Unit test for TLS heartbeats.
  *
  * Acts as a regression test against the Heartbleed bug (CVE-2014-0160).
- * Pull request: https://github.com/openssl/openssl/pull/67
+ * Pull request: https://github.com/openssl/openssl/pull/81
  * Discussion: 
- *   https://groups.google.com/forum/#!topic/mailing.openssl.dev/k_oL10ysLUo
- *   https://groups.google.com/forum/#!topic/mailing.openssl.dev/N96KqJ6WgTs
+ *   https://groups.google.com/d/msg/mailing.openssl.dev/N96KqJ6WgTs/YelyxMJoqmUJ
+ *   https://groups.google.com/d/msg/mailing.openssl.dev/k_oL10ysLUo/r93f_hHZBwMJ
+ *   https://groups.google.com/d/msg/mailing.openssl.dev/ge4PIs3byZk/Uhp0vLoGlEMJ
  *
  * Author:  Mike Bland (mbland@acm.org, http://mike-bland.com/)
  * Date:    2014-04-12
