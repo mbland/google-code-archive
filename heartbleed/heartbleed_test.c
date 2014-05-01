@@ -4,7 +4,7 @@
  *
  * Acts as a regression test against the Heartbleed bug (CVE-2014-0160).
  * Pull request: https://github.com/openssl/openssl/pull/81
- * Discussion: 
+ * Discussion:
  *   https://groups.google.com/d/msg/mailing.openssl.dev/N96KqJ6WgTs/YelyxMJoqmUJ
  *   https://groups.google.com/d/msg/mailing.openssl.dev/k_oL10ysLUo/r93f_hHZBwMJ
  *   https://groups.google.com/d/msg/mailing.openssl.dev/ge4PIs3byZk/Uhp0vLoGlEMJ
@@ -100,6 +100,7 @@ typedef struct {
 static HeartbleedTestFixture SetUp(const char* const test_case_name,
     const SSL_METHOD* meth) {
   HeartbleedTestFixture fixture;
+  int setup_ok = 1;
   memset(&fixture, 0, sizeof(fixture));
   fixture.test_case_name = test_case_name;
 
@@ -107,20 +108,38 @@ static HeartbleedTestFixture SetUp(const char* const test_case_name,
   if (!fixture.ctx) {
     fprintf(stderr, "Failed to allocate SSL_CTX for test: %s\n",
             test_case_name);
+    setup_ok = 0;
     goto fail;
   }
 
   fixture.s = SSL_new(fixture.ctx);
   if (!fixture.s) {
     fprintf(stderr, "Failed to allocate SSL for test: %s\n", test_case_name);
+    setup_ok = 0;
     goto fail;
   }
 
-  ssl_init_wbio_buffer(fixture.s, 1);
-  ssl3_setup_buffers(fixture.s);
+  if (!ssl_init_wbio_buffer(fixture.s, 1)) {
+    fprintf(stderr, "Failed to set up wbio buffer for test: %s\n",
+            test_case_name);
+    setup_ok = 0;
+    goto fail;
+  }
+
+  if (!ssl3_setup_buffers(fixture.s)) {
+    fprintf(stderr, "Failed to setup buffers for test: %s\n", test_case_name);
+    setup_ok = 0;
+    goto fail;
+  }
+
+  /* Clear the memory for the return buffer, since this isn't automatically
+   * zeroed in opt mode and will cause spurious test failures that will change
+   * with each execution.
+   */
+  memset(fixture.s->s3->wbuf.buf, 0, fixture.s->s3->wbuf.len);
 
 fail:
-  if (!fixture.s) {
+  if (!setup_ok) {
     ERR_print_errors_fp(stderr);
     exit(EXIT_FAILURE);
   }
@@ -169,9 +188,7 @@ static HeartbleedTestFixture SetUpTls(const char* const test_case_name) {
 
 static void TearDown(HeartbleedTestFixture fixture) {
   ERR_print_errors_fp(stderr);
-  memset(fixture.s, 0, sizeof(*fixture.s));
   SSL_free(fixture.s);
-  memset(fixture.ctx, 0, sizeof(*fixture.ctx));
   SSL_CTX_free(fixture.ctx);
 }
 
