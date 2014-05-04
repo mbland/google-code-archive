@@ -16,6 +16,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 enum HandshakeResult {
     SUCCESS = 0,
@@ -50,10 +51,10 @@ static const char* const HandshakeResultString(enum HandshakeResult r) {
 typedef struct
 {
     HashReference ref;
-    SSLBuffer client;
-    SSLBuffer server;
-    SSLBuffer params;
-    SSLBuffer output;
+    SSLBuffer *client;
+    SSLBuffer *server;
+    SSLBuffer *params;
+    SSLBuffer *output;
     const char *test_case_name;
     enum HandshakeResult expected;
 } HashHandshakeTestFixture;
@@ -62,12 +63,24 @@ static int HashHandshakeTestFailInit(SSLBuffer *digestCtx) {
   return INIT_FAILURE;
 }
 
-/* As a complete contrivance for the sake of this proof-of-concept, we'll
- * return a failure based on data->length.
+/* When HashHandshakeTestUpdate() evaluates a FAIL_ON_EVALUATION-assigned
+ * SSLBuffer*, it will return the error value encoded in the SSLBuffer*.
+ * This method avoids the overloading of an available SSLBuffer data member,
+ * and will work for opaque pointer types. It relies on the even-alignment of
+ * pointers on most architectures. Thanks to Tony Aiuto for this trick.
  */
+#define FAIL_ON_EVALUATION_ODD_ALIGNMENT 0x03
+#define FAIL_ON_EVALUATION_MASK          0xFF
+#define FAIL_ON_EVALUATION(failure_mode) \
+        ((SSLBuffer*)(FAIL_ON_EVALUATION_ODD_ALIGNMENT|failure_mode << 8))
+
 static int HashHandshakeTestUpdate(SSLBuffer *digestCtx,
     const SSLBuffer *data) {
-  return (int)data->length;
+  if (((int)data & FAIL_ON_EVALUATION_MASK) ==
+      FAIL_ON_EVALUATION_ODD_ALIGNMENT) {
+    return ((int)data >> 8) & FAIL_ON_EVALUATION_MASK;
+  }
+  return SUCCESS;
 }
 
 static int HashHandshakeTestFailFinal(SSLBuffer *digestCtx,
@@ -77,12 +90,10 @@ static int HashHandshakeTestFailFinal(SSLBuffer *digestCtx,
 
 static HashHandshakeTestFixture MakeFixture(const char *test_case_name) {
   HashHandshakeTestFixture fixture;
+  memset(&fixture, 0, sizeof(fixture));
   fixture.ref = SSLHashNull;
   fixture.ref.update = HashHandshakeTestUpdate;
-  fixture.test_case_name = test_case_name; 
-  fixture.client.length = SUCCESS;
-  fixture.server.length = SUCCESS;
-  fixture.params.length = SUCCESS;
+  fixture.test_case_name = test_case_name;
   return fixture;
 }
 
@@ -90,8 +101,8 @@ static HashHandshakeTestFixture MakeFixture(const char *test_case_name) {
  * otherwise. */
 static int ExecuteHandshake(HashHandshakeTestFixture fixture) {
   const enum HandshakeResult actual = HashHandshake(
-      &fixture.ref, &fixture.client, &fixture.server, &fixture.params,
-      &fixture.output);
+      &fixture.ref, fixture.client, fixture.server, fixture.params,
+      fixture.output);
 
   if (actual != fixture.expected) {
     printf("%s failed: expected %s, received %s\n", fixture.test_case_name,
@@ -118,21 +129,21 @@ static int TestHandshakeInitFailure() {
 static int TestHandshakeUpdateClientFailure() {
   HashHandshakeTestFixture fixture = MakeFixture(__func__);
   fixture.expected = UPDATE_CLIENT_FAILURE;
-  fixture.client.length = UPDATE_CLIENT_FAILURE;
+  fixture.client = FAIL_ON_EVALUATION(UPDATE_CLIENT_FAILURE);
   return ExecuteHandshake(fixture);
 }
 
 static int TestHandshakeUpdateServerFailure() {
   HashHandshakeTestFixture fixture = MakeFixture(__func__);
   fixture.expected = UPDATE_SERVER_FAILURE;
-  fixture.server.length = UPDATE_SERVER_FAILURE;
+  fixture.server = FAIL_ON_EVALUATION(UPDATE_SERVER_FAILURE);
   return ExecuteHandshake(fixture);
 }
 
 static int TestHandshakeUpdateParamsFailure() {
   HashHandshakeTestFixture fixture = MakeFixture(__func__);
   fixture.expected = UPDATE_PARAMS_FAILURE;
-  fixture.params.length = UPDATE_PARAMS_FAILURE;
+  fixture.params = FAIL_ON_EVALUATION(UPDATE_PARAMS_FAILURE);
   return ExecuteHandshake(fixture);
 }
 
