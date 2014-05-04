@@ -88,7 +88,7 @@ static int HashHandshakeTestFailFinal(SSLBuffer *digestCtx,
   return FINAL_FAILURE;
 }
 
-static HashHandshakeTestFixture MakeFixture(const char *test_case_name) {
+static HashHandshakeTestFixture SetUp(const char *test_case_name) {
   HashHandshakeTestFixture fixture;
   memset(&fixture, 0, sizeof(fixture));
   fixture.ref = SSLHashNull;
@@ -114,41 +114,41 @@ static int ExecuteHandshake(HashHandshakeTestFixture fixture) {
 }
 
 static int TestHandshakeSuccess() {
-  HashHandshakeTestFixture fixture = MakeFixture(__func__);
+  HashHandshakeTestFixture fixture = SetUp(__func__);
   fixture.expected = SUCCESS;
   return ExecuteHandshake(fixture);
 }
 
 static int TestHandshakeInitFailure() {
-  HashHandshakeTestFixture fixture = MakeFixture(__func__);
+  HashHandshakeTestFixture fixture = SetUp(__func__);
   fixture.expected = INIT_FAILURE;
   fixture.ref.init = HashHandshakeTestFailInit;
   return ExecuteHandshake(fixture);
 }
 
 static int TestHandshakeUpdateClientFailure() {
-  HashHandshakeTestFixture fixture = MakeFixture(__func__);
+  HashHandshakeTestFixture fixture = SetUp(__func__);
   fixture.expected = UPDATE_CLIENT_FAILURE;
   fixture.client = FAIL_ON_EVALUATION(UPDATE_CLIENT_FAILURE);
   return ExecuteHandshake(fixture);
 }
 
 static int TestHandshakeUpdateServerFailure() {
-  HashHandshakeTestFixture fixture = MakeFixture(__func__);
+  HashHandshakeTestFixture fixture = SetUp(__func__);
   fixture.expected = UPDATE_SERVER_FAILURE;
   fixture.server = FAIL_ON_EVALUATION(UPDATE_SERVER_FAILURE);
   return ExecuteHandshake(fixture);
 }
 
 static int TestHandshakeUpdateParamsFailure() {
-  HashHandshakeTestFixture fixture = MakeFixture(__func__);
+  HashHandshakeTestFixture fixture = SetUp(__func__);
   fixture.expected = UPDATE_PARAMS_FAILURE;
   fixture.params = FAIL_ON_EVALUATION(UPDATE_PARAMS_FAILURE);
   return ExecuteHandshake(fixture);
 }
 
 static int TestHandshakeFinalFailure() {
-  HashHandshakeTestFixture fixture = MakeFixture(__func__);
+  HashHandshakeTestFixture fixture = SetUp(__func__);
   fixture.expected = FINAL_FAILURE;
   fixture.ref.final = HashHandshakeTestFailFinal;
   return ExecuteHandshake(fixture);
