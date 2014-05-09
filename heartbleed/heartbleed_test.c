@@ -253,6 +253,7 @@ static int ExecuteHeartbeat(HeartbleedTestFixture fixture) {
              actual_payload);
       result = 1;
     }
+    free(actual_payload);
   }
 
   if (result != 0) {
