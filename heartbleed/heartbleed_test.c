@@ -3,16 +3,23 @@
  * Unit test for TLS heartbeats.
  *
  * Acts as a regression test against the Heartbleed bug (CVE-2014-0160).
+ *
+ * Author:  Mike Bland (mbland@acm.org, http://mike-bland.com/)
+ * Date:    2014-04-12
+ * License: Creative Commons Attribution 4.0 International (CC By 4.0)
+ *          http://creativecommons.org/licenses/by/4.0/deed.en_US
+ *
+ * Converted from Google-style to OpenSSL style and contributed to OpenSSL as
+ * heartbeat_test.c:
+ *   http://git.openssl.org/gitweb/?p=openssl.git;a=blob;f=ssl/heartbeat_test.c
+ *   http://goo.gl/1F7SKs
+ *
  * Pull request: https://github.com/openssl/openssl/pull/81
  * Discussion:
  *   https://groups.google.com/d/msg/mailing.openssl.dev/N96KqJ6WgTs/YelyxMJoqmUJ
  *   https://groups.google.com/d/msg/mailing.openssl.dev/k_oL10ysLUo/r93f_hHZBwMJ
  *   https://groups.google.com/d/msg/mailing.openssl.dev/ge4PIs3byZk/Uhp0vLoGlEMJ
  *
- * Author:  Mike Bland (mbland@acm.org, http://mike-bland.com/)
- * Date:    2014-04-12
- * License: Creative Commons Attribution 4.0 International (CC By 4.0)
- *          http://creativecommons.org/licenses/by/4.0/deed.en_US
  * URL:
  *   https://code.google.com/p/mike-bland/source/browse/heartbleed/heartbleed_test.c
  *   http://goo.gl/w1bGyR
