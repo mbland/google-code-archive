@@ -73,6 +73,11 @@
  * The contents of the returned buffer in the failing test will depend on the
  * contents of memory on your machine.
  *
+ * PSEUDO-XUNIT STYLE
+ * ------------------
+ * This test is written in what I call the Pseudo-xUnit style:
+ * http://mike-bland.com/2014/06/05/pseudo-xunit-pattern.html
+ *
  * MORE INFORMATION
  * ----------------
  * http://mike-bland.com/2014/04/12/heartbleed.html

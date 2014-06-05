@@ -8,6 +8,11 @@
  * Date:    2014-02-24
  * License: Creative Commons Attribution 4.0 International (CC By 4.0)
  *          http://creativecommons.org/licenses/by/4.0/deed.en_US
+ *
+ * PSEUDO-XUNIT STYLE
+ * ------------------
+ * This test is written in what I call the Pseudo-xUnit style:
+ * http://mike-bland.com/2014/06/05/pseudo-xunit-pattern.html
  */
 
 #include "tls_digest.h"
