@@ -15,7 +15,21 @@ import os.path
 import re
 import shutil
 
-BUILD_FILE_NAME = 'build.mk'
+MAKE_DEPEND_LINE = '# DO NOT DELETE THIS LINE -- make depend depends on it.\n'
+
+
+def AddSrcVarIfNeeded(infile, outfile):
+  src_var = None
+  for line in infile:
+    if line.startswith('LIBSRC=') and not src_var:
+      src_var = 'LIBSRC'
+    elif line.startswith('SRC='):
+      src_var = 'SRC'
+    if line == MAKE_DEPEND_LINE:
+      if src_var is not None and src_var != 'SRC':
+        print '%s: Adding SRC variable' % infile.name
+        print >>outfile, 'SRC= $(%s)' % src_var
+    print >>outfile, line,
 
 
 def UpdateFile(orig_name, update_func):
@@ -28,11 +42,9 @@ def UpdateFile(orig_name, update_func):
 
 def UpdateMakefiles(arg, dirname, fnames):
   if 'Makefile' not in fnames: return
-  has_build_file = BUILD_FILE_NAME in fnames
-
   makefile_name = os.path.join(dirname, 'Makefile')
-  build_mk_name = os.path.join(dirname, BUILD_FILE_NAME)
-  add_deps_name = has_build_file and build_mk_name or makefile_name
+
+  UpdateFile(makefile_name, AddSrcVarIfNeeded)
 
 
 if __name__ == '__main__':
