@@ -42,6 +42,43 @@ def AddDependencyFilesToCleanTargets(infile, outfile):
     print >>outfile, line,
 
 
+def CreateNewMakefile(dirname, makefile_name, content):
+  TOP_PATTERN = re.compile('[^.%s]+' % os.path.sep)
+  makefile_path = os.path.join(dirname, makefile_name)
+
+  if not os.path.exists(makefile_path):
+    print '%s: created' % makefile_path
+    with open(makefile_path, 'w') as makefile:
+      print >>makefile, content % (
+          makefile_path, TOP_PATTERN.sub('..', dirname))
+
+
+def CreateGnuMakefile(dirname):
+  CreateNewMakefile(dirname, 'GNUmakefile',
+'''#
+# OpenSSL/%s
+#
+
+TOP= %s
+include $(TOP)/configure.mk
+include Makefile
+-include $(SRC:.c=.d)''')
+
+
+def CreateBsdMakefile(dirname):
+  CreateNewMakefile(dirname, 'BSDmakefile',
+'''#
+# OpenSSL/%s
+#
+
+TOP= %s
+.include "$(TOP)/configure.mk"
+.include "Makefile"
+.for d in $(SRC:.c=.d)
+.sinclude "$(d)"
+.endfor''')
+
+
 def UpdateFile(orig_name, update_func):
   updated_name = '%s.updated' % orig_name
   with open(orig_name, 'r') as orig:
@@ -53,12 +90,16 @@ def UpdateFile(orig_name, update_func):
 def UpdateMakefiles(arg, dirname, fnames):
   if 'Makefile' not in fnames: return
   makefile_name = os.path.join(dirname, 'Makefile')
-
   UpdateFile(makefile_name, AddSrcVarIfNeeded)
   UpdateFile(makefile_name, AddDependencyFilesToCleanTargets)
+  CreateGnuMakefile(dirname)
+  CreateBsdMakefile(dirname)
 
 
 if __name__ == '__main__':
   for d in os.listdir('.'):
     if os.path.isdir(d):
       os.path.walk(d, UpdateMakefiles, None)
+
+  CreateGnuMakefile('.')
+  CreateBsdMakefile('.')
