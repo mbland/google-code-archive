@@ -32,6 +32,16 @@ def AddSrcVarIfNeeded(infile, outfile):
     print >>outfile, line,
 
 
+def AddDependencyFilesToCleanTargets(infile, outfile):
+  CLEAN_OBJ_PATTERN = re.compile('rm .* \*\.o ')
+  for line in infile:
+    if CLEAN_OBJ_PATTERN.search(line) and line.find(' *.d ') == -1:
+      print '%s: Adding .d files to "clean" target' % infile.name
+      line = line.replace(' *.o ', ' *.o *.d ', 1)
+      line = line.replace(' */*.o ', ' */*.o */*.d ', 1)
+    print >>outfile, line,
+
+
 def UpdateFile(orig_name, update_func):
   updated_name = '%s.updated' % orig_name
   with open(orig_name, 'r') as orig:
@@ -45,6 +55,7 @@ def UpdateMakefiles(arg, dirname, fnames):
   makefile_name = os.path.join(dirname, 'Makefile')
 
   UpdateFile(makefile_name, AddSrcVarIfNeeded)
+  UpdateFile(makefile_name, AddDependencyFilesToCleanTargets)
 
 
 if __name__ == '__main__':
