@@ -16,6 +16,8 @@ import re
 import shutil
 
 MAKE_DEPEND_LINE = '# DO NOT DELETE THIS LINE -- make depend depends on it.\n'
+CONFIG_VAR_PATTERN = re.compile('([^ \t=]+) *=')
+CONFIG_VARS = {}
 
 
 def AddSrcVarIfNeeded(infile, outfile):
@@ -79,6 +81,28 @@ TOP= %s
 .endfor''')
 
 
+def ReadConfigureVars(config_filename):
+  config_vars = {}
+  with open(config_filename, 'r') as config_file:
+    for line in config_file:
+      m = CONFIG_VAR_PATTERN.match(line)
+      if m:
+        config_vars[m.group(1)] = 1
+  return config_vars
+
+
+def RemoveConfigureVars(infile, outfile):
+  skip_next_line = False
+  for line in infile:
+    m = CONFIG_VAR_PATTERN.match(line)
+    if (m and m.group(1) in CONFIG_VARS) or skip_next_line:
+      if not skip_next_line:
+        print '%s: Removing variable %s' % (infile.name, m.group(1))
+      skip_next_line = line.endswith('\\\n')
+    else:
+      print >>outfile, line,
+
+
 def UpdateFile(orig_name, update_func):
   updated_name = '%s.updated' % orig_name
   with open(orig_name, 'r') as orig:
@@ -94,12 +118,23 @@ def UpdateMakefiles(arg, dirname, fnames):
   UpdateFile(makefile_name, AddDependencyFilesToCleanTargets)
   CreateGnuMakefile(dirname)
   CreateBsdMakefile(dirname)
+  UpdateFile(makefile_name, RemoveConfigureVars)
 
 
 if __name__ == '__main__':
+  # Read the top-level configure file, if it exists.
+  if os.path.exists('configure.mk.org'):
+    CONFIG_VARS = ReadConfigureVars('configure.mk.org')
+    # Adding TOP since it's defined in each Makefile
+    CONFIG_VARS['TOP'] = 1
+    # MAKEDEPEND is on its way out, too.
+    CONFIG_VARS['MAKEDEPEND'] = 1
+
   for d in os.listdir('.'):
     if os.path.isdir(d):
       os.path.walk(d, UpdateMakefiles, None)
 
   CreateGnuMakefile('.')
   CreateBsdMakefile('.')
+  UpdateFile('Makefile.org', RemoveConfigureVars)
+  UpdateFile('Makefile.fips', RemoveConfigureVars)
