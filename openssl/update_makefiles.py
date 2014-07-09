@@ -103,6 +103,14 @@ def RemoveConfigureVars(infile, outfile):
       print >>outfile, line,
 
 
+def RemoveOldMakeDependOutput(infile, outfile):
+  for line in infile:
+    if line == MAKE_DEPEND_LINE:
+      print '%s: Removing "make depend" output' % infile.name
+      return
+    print >>outfile, line,
+
+
 def UpdateFile(orig_name, update_func):
   updated_name = '%s.updated' % orig_name
   with open(orig_name, 'r') as orig:
@@ -119,6 +127,7 @@ def UpdateMakefiles(arg, dirname, fnames):
   CreateGnuMakefile(dirname)
   CreateBsdMakefile(dirname)
   UpdateFile(makefile_name, RemoveConfigureVars)
+  UpdateFile(makefile_name, RemoveOldMakeDependOutput)
 
 
 if __name__ == '__main__':
