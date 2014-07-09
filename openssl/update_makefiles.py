@@ -162,3 +162,4 @@ if __name__ == '__main__':
   CreateBsdMakefile('.')
   UpdateFile('Makefile.org', RemoveConfigureVars)
   UpdateFile('Makefile.fips', RemoveConfigureVars)
+  UpdateFile('Makefile.shared', RemoveConfigureVars)
