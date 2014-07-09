@@ -81,6 +81,16 @@ TOP= %s
 .endfor''')
 
 
+def AddTopToFilesTarget(infile, outfile):
+  FILES_SCRIPT = 'util/files.pl'
+  UPDATE = '%s %s' % (FILES_SCRIPT, 'TOP=$(TOP)')
+  for line in infile:
+    if line.find(FILES_SCRIPT) != -1 and line.find(UPDATE) == -1:
+      print '%s: Adding TOP as argument to files.pl' % infile.name
+      line = line.replace(FILES_SCRIPT, UPDATE)
+    print >>outfile, line,
+
+
 def ReadConfigureVars(config_filename):
   config_vars = {}
   with open(config_filename, 'r') as config_file:
@@ -140,6 +150,7 @@ def UpdateMakefiles(arg, dirname, fnames):
   UpdateFile(makefile_name, AddDependencyFilesToCleanTargets)
   CreateGnuMakefile(dirname)
   CreateBsdMakefile(dirname)
+  UpdateFile(makefile_name, AddTopToFilesTarget)
   UpdateFile(makefile_name, RemoveConfigureVars)
   UpdateFile(makefile_name, RemoveOldMakeDependOutput)
   UpdateFile(makefile_name, RemoveDependTarget)
