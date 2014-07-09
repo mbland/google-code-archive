@@ -135,6 +135,16 @@ def RemoveDependTarget(infile, outfile):
     print >>outfile, line,
 
 
+def CatConfigureAndMakefileShared(infile, outfile):
+  PATTERN = '$(MAKE) -f $(TOP)/Makefile.shared -e'
+  NEW = 'cat $(TOP)/configure.mk $(TOP)/Makefile.shared | $(MAKE) -f -'
+  for line in infile:
+    if line.find(PATTERN) != -1:
+      print '%s: Replacing Makefile.shared command' % infile.name
+      line = line.replace(PATTERN, NEW)
+    print >>outfile, line,
+
+
 def UpdateFile(orig_name, update_func):
   updated_name = '%s.updated' % orig_name
   with open(orig_name, 'r') as orig:
@@ -154,6 +164,7 @@ def UpdateMakefiles(arg, dirname, fnames):
   UpdateFile(makefile_name, RemoveConfigureVars)
   UpdateFile(makefile_name, RemoveOldMakeDependOutput)
   UpdateFile(makefile_name, RemoveDependTarget)
+  UpdateFile(makefile_name, CatConfigureAndMakefileShared)
 
 
 if __name__ == '__main__':
