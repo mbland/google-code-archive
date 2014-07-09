@@ -111,6 +111,20 @@ def RemoveOldMakeDependOutput(infile, outfile):
     print >>outfile, line,
 
 
+def RemoveDependTarget(infile, outfile):
+  removing_target = False
+  for line in infile:
+    if removing_target:
+      if line.startswith('\t') or line == '\n':
+        continue
+      removing_target = False
+    elif line.startswith('depend:'):
+      print '%s: Removing "make depend" target' % infile.name
+      removing_target = True
+      continue
+    print >>outfile, line,
+
+
 def UpdateFile(orig_name, update_func):
   updated_name = '%s.updated' % orig_name
   with open(orig_name, 'r') as orig:
@@ -128,6 +142,7 @@ def UpdateMakefiles(arg, dirname, fnames):
   CreateBsdMakefile(dirname)
   UpdateFile(makefile_name, RemoveConfigureVars)
   UpdateFile(makefile_name, RemoveOldMakeDependOutput)
+  UpdateFile(makefile_name, RemoveDependTarget)
 
 
 if __name__ == '__main__':
