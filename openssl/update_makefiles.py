@@ -104,6 +104,10 @@ def ReadConfigureVars(config_filename):
   return config_vars
 
 
+def Continues(line):
+  return line.endswith('\\\n')
+
+
 def RemoveConfigureVars(infile, outfile):
   skip_next_line = False
   for line in infile:
@@ -111,7 +115,7 @@ def RemoveConfigureVars(infile, outfile):
     if (m and m.group(1) in CONFIG_VARS) or skip_next_line:
       if not skip_next_line:
         print '%s: Removing variable %s' % (infile.name, m.group(1))
-      skip_next_line = line.endswith('\\\n')
+      skip_next_line = Continues(line)
     else:
       print >>outfile, line,
 
@@ -170,33 +174,119 @@ def UpdateMakefiles(arg, dirname, fnames):
   UpdateFile(makefile_name, CatConfigureAndMakefileShared)
 
 
-def CollectVarsAndTargets(makefile_path, all_vars, all_targets):
+class MakefileObjects(object):
+  class Variable(object):
+    def __init__(self, name, definition):
+      self.name = name
+      self.definition = definition
+
+
+  class Target(object):
+    def __init__(self, name, prerequisites, recipe):
+      self.name = name
+      self.prerequisites = prerequisites
+      self.recipe = recipe
+
+
+  def __init__(self, makefile):
+    self.makefile = makefile
+    self._suffix = '_%s' % os.path.dirname(makefile).replace(os.path.sep, '_')
+    self.variables = {}
+    self.targets = {}
+
+  def __str__(self):
+    variable_names = self.variables.keys()
+    variable_names.sort()
+    target_names = self.targets.keys()
+    target_names.sort()
+    return '%s:\n  vars:\n    %s\n  targets:\n    %s' % (
+        self.makefile,
+        '\n    '.join(variable_names), '\n    '.join(target_names))
+
+  def add_var(self, name, definition):
+    assert name not in self.variables, '%s: %s' % (self.makefile, name)
+    self.variables[name] = MakefileObjects.Variable(name, definition)
+
+  def add_target(self, name, prerequisites, recipe):
+    assert name not in self.targets, '%s: %s' % (self.makefile, name)
+    self.targets[name] = MakefileObjects.Target(name, prerequisites, recipe)
+
+
+def CollectVarsAndTargets(makefile_path, all_objects):
+  objects = MakefileObjects(makefile_path)
   with open(makefile_path, 'r') as makefile:
+    var_name = None
+    definition = None
+    target_name = None
+    prerequisites = None
+    recipe = None
+
     for line in makefile:
-      name = None
-      collection = None
+      if var_name is not None:
+        definition.append(line)
+        if not Continues(line):
+          objects.add_var(var_name, ''.join(definition))
+          var_name = None
+          definition_name = None
+        continue
+
+      if target_name is not None:
+        if recipe is None:
+          prerequisites.append(line)
+          if not Continues(line):
+            prerequisites = ''.join(prerequisites)
+            recipe = []
+          continue
+
+        if line.startswith('\t'):
+          recipe.append(line)
+          continue
+        objects.add_target(target_name, prerequisites, ''.join(recipe))
+        target_name = None
+        prerequisites = None
+        recipe = None
+
       config_match = CONFIG_VAR_PATTERN.match(line)
       target_match = TARGET_PATTERN.match(line)
       assert not (config_match and target_match), (
         '%s: %s\n  var: %s\n  target:%s' %
         (makefile.name, line, config_match.group(1), target_match.group(1)))
+
       if config_match:
-        name = config_match.group(1)
-        collection = all_vars
-      elif target_match:
-        name = target_match.group(1)
-        collection = all_targets
-      if name is not None and not name.endswith('.o'):
-        line = line.rstrip()
-        if name in collection:
-          collection[name].append((makefile.name, line))
+        var_name = config_match.group(1)
+        definition = line[config_match.end():]
+        if not Continues(line):
+          objects.add_var(var_name, definition)
+          var_name = None
+          definition = None
         else:
-          collection[name] = [(makefile.name, line)]
+          definition = [definition]
+
+      elif target_match:
+        target_name = target_match.group(1)
+        if target_name.endswith('.o'):
+          target_name = None
+          continue
+        prerequisites = line[target_match.end():]
+        if not Continues(line):
+          recipe = []
+        else:
+          prerequisites = [prerequisites]
+
+  all_objects[makefile_path] = objects
 
 
 def CollectVarsAndTargetsRecursive(arg, dirname, fnames):
   if 'Makefile' not in fnames: return
-  CollectVarsAndTargets(os.path.join(dirname, 'Makefile'), arg[0], arg[1])
+  CollectVarsAndTargets(os.path.join(dirname, 'Makefile'), arg)
+
+
+def MapVarsAndTargetsToFiles(makefile_objects, all_vars, all_targets):
+  for mf in makefile_objects:
+    for v in makefile_objects[mf].variables.values():
+      all_vars[v.name] = (mf, v.definition)
+    for t in makefile_objects[mf].targets.values():
+      all_targets[t.name] = (mf, t.prerequisites, t.recipe)
 
 
 def PrintCommonItems(items, preamble):
@@ -214,26 +304,39 @@ def PrintCommonItems(items, preamble):
 
 
 def PrintCommonVarsAndTargets():
+  top_objects = {}
+  CollectVarsAndTargets('configure.mk', top_objects)
+  CollectVarsAndTargets('Makefile', top_objects)
   top_vars = {}
   top_targets = {}
-  CollectVarsAndTargets('configure.mk', top_vars, top_targets)
-  CollectVarsAndTargets('Makefile', top_vars, top_targets)
+  MapVarsAndTargetsToFiles(top_objects, top_vars, top_targets)
   print '*** TOP-LEVEL VARS ***'
   for i in top_vars: print i
   print '*** TOP-LEVEL TARGETS ***'
   for i in top_targets: print i
 
+  all_objects = {}
   all_vars = {}
   all_targets = {}
+  all_objects.update(top_objects)
   all_vars.update(top_vars)
   all_targets.update(top_targets)
   for d in os.listdir('.'):
       if os.path.isdir(d):
-        os.path.walk(d, CollectVarsAndTargetsRecursive,
-            (all_vars, all_targets))
+        os.path.walk(d, CollectVarsAndTargetsRecursive, all_objects)
 
+  MapVarsAndTargetsToFiles(all_objects, all_vars, all_targets)
   PrintCommonItems(all_vars, '*** VARS ***')
   PrintCommonItems(all_targets, '*** TARGETS ***')
+
+
+def MapFilesToCommonVarsAndTargets(all_vars, all_targets):
+  files = {}
+  for i in all_vars.items:
+    if i[1] in files:
+      files[i[1]].add_var(i[0])
+    else:
+      files[i[1]] = MakefileObjects(i[1], variable=i[0])
 
 
 if __name__ == '__main__':
