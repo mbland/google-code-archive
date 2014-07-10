@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/python2.7
 # coding=UTF-8
 """
 Automates updates to OpenSSL Makefiles.
@@ -10,14 +10,17 @@ License: Creative Commons Attribution 4.0 International (CC By 4.0)
          http://creativecommons.org/licenses/by/4.0/deed.en_US
 """
 
+import argparse
 import os
 import os.path
 import re
 import shutil
+import sys
 
 MAKE_DEPEND_LINE = '# DO NOT DELETE THIS LINE -- make depend depends on it.\n'
 CONFIG_VAR_PATTERN = re.compile('([^ \t=]+) *=')
 CONFIG_VARS = {}
+TARGET_PATTERN = re.compile('([^\t=]+):')
 
 
 def AddSrcVarIfNeeded(infile, outfile):
@@ -167,7 +170,75 @@ def UpdateMakefiles(arg, dirname, fnames):
   UpdateFile(makefile_name, CatConfigureAndMakefileShared)
 
 
+def CollectVarsAndTargets(makefile_path, all_vars, all_targets):
+  with open(makefile_path, 'r') as makefile:
+    for line in makefile:
+      name = None
+      collection = None
+      config_match = CONFIG_VAR_PATTERN.match(line)
+      target_match = TARGET_PATTERN.match(line)
+      assert not (config_match and target_match), (
+        '%s: %s\n  var: %s\n  target:%s' %
+        (makefile.name, line, config_match.group(1), target_match.group(1)))
+      if config_match:
+        name = config_match.group(1)
+        collection = all_vars
+      elif target_match:
+        name = target_match.group(1)
+        collection = all_targets
+      if name is not None and not name.endswith('.o'):
+        line = line.rstrip()
+        if name in collection:
+          collection[name].append((makefile.name, line))
+        else:
+          collection[name] = [(makefile.name, line)]
+
+
+def CollectVarsAndTargetsRecursive(arg, dirname, fnames):
+  if 'Makefile' not in fnames: return
+  CollectVarsAndTargets(os.path.join(dirname, 'Makefile'), arg[0], arg[1])
+
+
+def PrintCommonItems(items, preamble):
+  flattened = [i for i in items.items() if len(i[1]) != 1]
+  def Cmp(lhs, rhs):
+    return cmp(len(lhs[1]), len(rhs[1]))
+  flattened.sort(cmp=Cmp, reverse=True)
+
+  print preamble
+  print "%d items" % len(flattened)
+  for i in flattened:
+    print '%s: %s files' % (i[0], len(i[1]))
+    for f in i[1]:
+      print '  %s: %s' % (f[0], f[1])
+
+
+def PrintCommonVarsAndTargets():
+  all_vars = {}
+  all_targets = {}
+  CollectVarsAndTargets('configure.mk', all_vars, all_targets)
+  CollectVarsAndTargets('Makefile', all_vars, all_targets)
+
+  for d in os.listdir('.'):
+      if os.path.isdir(d):
+        os.path.walk(d, CollectVarsAndTargetsRecursive,
+            (all_vars, all_targets))
+
+  PrintCommonItems(all_vars, '*** VARS ***')
+  PrintCommonItems(all_targets, '*** TARGETS ***')
+
+
 if __name__ == '__main__':
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--common',
+        help='Print common targets and vars; skip updates',
+        action='store_true')
+  args = parser.parse_args()
+
+  if args.common:
+    PrintCommonVarsAndTargets()
+    sys.exit(0)
+
   # Read the top-level configure file, if it exists.
   if os.path.exists('configure.mk.org'):
     CONFIG_VARS = ReadConfigureVars('configure.mk.org')
