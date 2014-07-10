@@ -289,23 +289,33 @@ def CollectVarsAndTargetsRecursive(arg, dirname, fnames):
 def MapVarsAndTargetsToFiles(makefile_objects, all_vars, all_targets):
   for mf in makefile_objects:
     for v in makefile_objects[mf].variables.values():
-      all_vars[v.name] = (mf, v.definition)
+      if v.name not in all_vars:
+        all_vars[v.name] = [(mf, v.definition)]
+      else:
+        all_vars[v.name].append((mf, v.definition))
     for t in makefile_objects[mf].targets.values():
-      all_targets[t.name] = (mf, t.prerequisites, t.recipe)
+      if t.name not in all_targets:
+        all_targets[t.name] = [(mf, t.prerequisites, t.recipe)]
+      else:
+        all_targets[t.name].append((mf, t.prerequisites, t.recipe))
 
 
-def PrintCommonItems(items, preamble):
-  flattened = [i for i in items.items() if len(i[1]) != 1]
+def PrintVarsAndTargets(items, preamble, common_only=False):
+  if common_only:
+    flattened = [i for i in items.items() if len(i[1]) != 1]
+  else:
+    flattened = [i for i in items.items()]
+
   def Cmp(lhs, rhs):
-    return cmp(len(lhs[1]), len(rhs[1]))
-  flattened.sort(cmp=Cmp, reverse=True)
+    return -cmp(len(lhs[1]), len(rhs[1])) or cmp(lhs[0], rhs[0])
+  flattened.sort(cmp=Cmp)
 
   print preamble
   print "%d items" % len(flattened)
   for i in flattened:
     print '%s: %s files' % (i[0], len(i[1]))
     for f in i[1]:
-      print '  %s: %s' % (f[0], f[1])
+      print '  %s: %s' % (f[0], f[1]),
 
 
 def PrintCommonVarsAndTargets():
@@ -315,24 +325,20 @@ def PrintCommonVarsAndTargets():
   top_vars = {}
   top_targets = {}
   MapVarsAndTargetsToFiles(top_objects, top_vars, top_targets)
-  print '*** TOP-LEVEL VARS ***'
-  for i in top_vars: print i
-  print '*** TOP-LEVEL TARGETS ***'
-  for i in top_targets: print i
+  PrintVarsAndTargets(top_vars, '*** TOP-LEVEL VARS ***')
+  PrintVarsAndTargets(top_targets, '*** TOP-LEVEL TARGETS ***')
 
   all_objects = {}
   all_vars = {}
   all_targets = {}
   all_objects.update(top_objects)
-  all_vars.update(top_vars)
-  all_targets.update(top_targets)
   for d in os.listdir('.'):
-      if os.path.isdir(d):
-        os.path.walk(d, CollectVarsAndTargetsRecursive, all_objects)
+    if os.path.isdir(d):
+      os.path.walk(d, CollectVarsAndTargetsRecursive, all_objects)
 
   MapVarsAndTargetsToFiles(all_objects, all_vars, all_targets)
-  PrintCommonItems(all_vars, '*** VARS ***')
-  PrintCommonItems(all_targets, '*** TARGETS ***')
+  PrintVarsAndTargets(all_vars, '*** VARS ***', common_only=True)
+  PrintVarsAndTargets(all_targets, '*** TARGETS ***', common_only=True)
 
 
 def MapFilesToCommonVarsAndTargets(all_vars, all_targets):
