@@ -208,8 +208,13 @@ class MakefileObjects(object):
     self.variables[name] = MakefileObjects.Variable(name, definition)
 
   def add_target(self, name, prerequisites, recipe):
-    assert name not in self.targets, '%s: %s' % (self.makefile, name)
-    self.targets[name] = MakefileObjects.Target(name, prerequisites, recipe)
+    if name not in self.targets:
+      self.targets[name] = MakefileObjects.Target(name, prerequisites, recipe)
+    else:
+      target = self.targets[name]
+      target.prerequisites = '%s %s' % (target.prerequisites, prerequisites)
+      assert not (target.recipe and recipe), (
+          '%s: duplicate recipes for %s' % (self.makefile, target))
 
 
 def CollectVarsAndTargets(makefile_path, all_objects):
