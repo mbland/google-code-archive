@@ -214,11 +214,19 @@ def PrintCommonItems(items, preamble):
 
 
 def PrintCommonVarsAndTargets():
+  top_vars = {}
+  top_targets = {}
+  CollectVarsAndTargets('configure.mk', top_vars, top_targets)
+  CollectVarsAndTargets('Makefile', top_vars, top_targets)
+  print '*** TOP-LEVEL VARS ***'
+  for i in top_vars: print i
+  print '*** TOP-LEVEL TARGETS ***'
+  for i in top_targets: print i
+
   all_vars = {}
   all_targets = {}
-  CollectVarsAndTargets('configure.mk', all_vars, all_targets)
-  CollectVarsAndTargets('Makefile', all_vars, all_targets)
-
+  all_vars.update(top_vars)
+  all_targets.update(top_targets)
   for d in os.listdir('.'):
       if os.path.isdir(d):
         os.path.walk(d, CollectVarsAndTargetsRecursive,
