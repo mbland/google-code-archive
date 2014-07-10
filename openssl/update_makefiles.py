@@ -18,9 +18,9 @@ import shutil
 import sys
 
 MAKE_DEPEND_LINE = '# DO NOT DELETE THIS LINE -- make depend depends on it.\n'
-CONFIG_VAR_PATTERN = re.compile('([^ \t=]+) *=')
+CONFIG_VAR_PATTERN = re.compile('([^# \t=]+) *=')
 CONFIG_VARS = {}
-TARGET_PATTERN = re.compile('([^\t=]+):')
+TARGET_PATTERN = re.compile('([^#\t=]+):')
 
 
 def AddSrcVarIfNeeded(infile, outfile):
