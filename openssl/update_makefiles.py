@@ -264,3 +264,6 @@ if __name__ == '__main__':
   UpdateFile('Makefile.org', RemoveConfigureVars)
   UpdateFile('Makefile.fips', RemoveConfigureVars)
   UpdateFile('Makefile.shared', RemoveConfigureVars)
+
+  # TODO: Strip remaining top-level vars from Makefiles when lower-level
+  # Makefiles are included from the top-level.
