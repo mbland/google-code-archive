@@ -174,19 +174,18 @@ def UpdateMakefiles(arg, dirname, fnames):
   UpdateFile(makefile_name, CatConfigureAndMakefileShared)
 
 
-class MakefileObjects(object):
+class Makefile(object):
+
   class Variable(object):
     def __init__(self, name, definition):
       self.name = name
       self.definition = definition
-
 
   class Target(object):
     def __init__(self, name, prerequisites, recipe):
       self.name = name
       self.prerequisites = prerequisites
       self.recipe = recipe
-
 
   def __init__(self, makefile):
     self.makefile = makefile
@@ -205,11 +204,11 @@ class MakefileObjects(object):
 
   def add_var(self, name, definition):
     assert name not in self.variables, '%s: %s' % (self.makefile, name)
-    self.variables[name] = MakefileObjects.Variable(name, definition)
+    self.variables[name] = Makefile.Variable(name, definition)
 
   def add_target(self, name, prerequisites, recipe):
     if name not in self.targets:
-      self.targets[name] = MakefileObjects.Target(name, prerequisites, recipe)
+      self.targets[name] = Makefile.Target(name, prerequisites, recipe)
     else:
       target = self.targets[name]
       target.prerequisites = '%s %s' % (target.prerequisites, prerequisites)
@@ -217,20 +216,20 @@ class MakefileObjects(object):
           '%s: duplicate recipes for %s' % (self.makefile, target))
 
 
-def CollectVarsAndTargets(makefile_path, all_objects):
-  objects = MakefileObjects(makefile_path)
-  with open(makefile_path, 'r') as makefile:
+def CollectVarsAndTargets(makefile_path, makefiles):
+  makefile = Makefile(makefile_path)
+  with open(makefile_path, 'r') as infile:
     var_name = None
     definition = None
     target_name = None
     prerequisites = None
     recipe = None
 
-    for line in makefile:
+    for line in infile:
       if var_name is not None:
         definition.append(line)
         if not Continues(line):
-          objects.add_var(var_name, ''.join(definition))
+          makefile.add_var(var_name, ''.join(definition))
           var_name = None
           definition_name = None
         continue
@@ -246,7 +245,7 @@ def CollectVarsAndTargets(makefile_path, all_objects):
         if line.startswith('\t'):
           recipe.append(line)
           continue
-        objects.add_target(target_name, prerequisites, ''.join(recipe))
+        makefile.add_target(target_name, prerequisites, ''.join(recipe))
         target_name = None
         prerequisites = None
         recipe = None
@@ -261,7 +260,7 @@ def CollectVarsAndTargets(makefile_path, all_objects):
         var_name = config_match.group(1)
         definition = line[config_match.end():]
         if not Continues(line):
-          objects.add_var(var_name, definition)
+          makefile.add_var(var_name, definition)
           var_name = None
           definition = None
         else:
@@ -278,22 +277,22 @@ def CollectVarsAndTargets(makefile_path, all_objects):
         else:
           prerequisites = [prerequisites]
 
-  all_objects[makefile_path] = objects
+  makefiles[makefile_path] = makefile
 
 
-def CollectVarsAndTargetsRecursive(arg, dirname, fnames):
+def CollectVarsAndTargetsRecursive(makefiles, dirname, fnames):
   if 'Makefile' not in fnames: return
-  CollectVarsAndTargets(os.path.join(dirname, 'Makefile'), arg)
+  CollectVarsAndTargets(os.path.join(dirname, 'Makefile'), makefiles)
 
 
-def MapVarsAndTargetsToFiles(makefile_objects, all_vars, all_targets):
-  for mf in makefile_objects:
-    for v in makefile_objects[mf].variables.values():
+def MapVarsAndTargetsToFiles(makefiles, all_vars, all_targets):
+  for mf in makefiles:
+    for v in makefiles[mf].variables.values():
       if v.name not in all_vars:
         all_vars[v.name] = [(mf, v.definition)]
       else:
         all_vars[v.name].append((mf, v.definition))
-    for t in makefile_objects[mf].targets.values():
+    for t in makefiles[mf].targets.values():
       if t.name not in all_targets:
         all_targets[t.name] = [(mf, t.prerequisites, t.recipe)]
       else:
@@ -319,24 +318,24 @@ def PrintVarsAndTargets(items, preamble, common_only=False):
 
 
 def PrintCommonVarsAndTargets():
-  top_objects = {}
-  CollectVarsAndTargets('configure.mk', top_objects)
-  CollectVarsAndTargets('Makefile', top_objects)
+  top_makefiles = {}
+  CollectVarsAndTargets('configure.mk', top_makefiles)
+  CollectVarsAndTargets('Makefile', top_makefiles)
   top_vars = {}
   top_targets = {}
-  MapVarsAndTargetsToFiles(top_objects, top_vars, top_targets)
+  MapVarsAndTargetsToFiles(top_makefiles, top_vars, top_targets)
   PrintVarsAndTargets(top_vars, '*** TOP-LEVEL VARS ***')
   PrintVarsAndTargets(top_targets, '*** TOP-LEVEL TARGETS ***')
 
-  all_objects = {}
+  all_makefiles = {}
   all_vars = {}
   all_targets = {}
-  all_objects.update(top_objects)
+  all_makefiles.update(top_makefiles)
   for d in os.listdir('.'):
     if os.path.isdir(d):
-      os.path.walk(d, CollectVarsAndTargetsRecursive, all_objects)
+      os.path.walk(d, CollectVarsAndTargetsRecursive, all_makefiles)
 
-  MapVarsAndTargetsToFiles(all_objects, all_vars, all_targets)
+  MapVarsAndTargetsToFiles(all_makefiles, all_vars, all_targets)
   PrintVarsAndTargets(all_vars, '*** VARS ***', common_only=True)
   PrintVarsAndTargets(all_targets, '*** TARGETS ***', common_only=True)
 
@@ -347,7 +346,7 @@ def MapFilesToCommonVarsAndTargets(all_vars, all_targets):
     if i[1] in files:
       files[i[1]].add_var(i[0])
     else:
-      files[i[1]] = MakefileObjects(i[1], variable=i[0])
+      files[i[1]] = Makefile(i[1], variable=i[0])
 
 
 if __name__ == '__main__':
