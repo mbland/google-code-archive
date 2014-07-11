@@ -559,23 +559,25 @@ def PrintCommonVarsAndTargets():
   See the docstring for PrintVarsAndTargets() for more details.
   """
   top_makefiles = {}
-  CollectVarsAndTargets('configure.mk', top_makefiles)
-  CollectVarsAndTargets('Makefile', top_makefiles)
   top_vars = {}
   top_targets = {}
-  MapVarsAndTargetsToFiles(top_makefiles, top_vars, top_targets)
-  PrintVarsAndTargets(top_vars, '*** TOP-LEVEL VARS ***')
-  PrintVarsAndTargets(top_targets, '*** TOP-LEVEL TARGETS ***')
-
   all_makefiles = {}
   all_vars = {}
   all_targets = {}
+
+  CollectVarsAndTargets('configure.mk', top_makefiles)
+  CollectVarsAndTargets('Makefile', top_makefiles)
   all_makefiles.update(top_makefiles)
+
   for d in os.listdir('.'):
     if os.path.isdir(d):
       os.path.walk(d, CollectVarsAndTargetsRecursive, all_makefiles)
 
+  MapVarsAndTargetsToFiles(top_makefiles, top_vars, top_targets)
   MapVarsAndTargetsToFiles(all_makefiles, all_vars, all_targets)
+
+  PrintVarsAndTargets(top_vars, '*** TOP-LEVEL VARS ***')
+  PrintVarsAndTargets(top_targets, '*** TOP-LEVEL TARGETS ***')
   PrintVarsAndTargets(all_vars, '*** VARS ***', common_only=True)
   PrintVarsAndTargets(all_targets, '*** TARGETS ***', common_only=True)
 
