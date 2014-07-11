@@ -340,15 +340,6 @@ def PrintCommonVarsAndTargets():
   PrintVarsAndTargets(all_targets, '*** TARGETS ***', common_only=True)
 
 
-def MapFilesToCommonVarsAndTargets(all_vars, all_targets):
-  files = {}
-  for i in all_vars.items:
-    if i[1] in files:
-      files[i[1]].add_var(i[0])
-    else:
-      files[i[1]] = Makefile(i[1], variable=i[0])
-
-
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--common',
