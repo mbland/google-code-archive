@@ -330,13 +330,11 @@ def UpdateMakefiles(unused_arg, dirname, fnames):
 def SplitMakeVars(s):
   """Splits a string into a list in which Make variables are elements.
 
-  If the string contains no Make variables, or consists only of a single Make
-  variable, the resulting list will contain a single element containing the
-  original string. e.g. "foo bar" "$(FOO)"
-
   If the resulting list contains more than one element, there is at least one
   Make variable present in the original string. Each element containing a Make
   variable will begin with '$(' and end with ')'.
+
+  Does not currently support nested variable expansions.
 
   Args:
     s: string to split
@@ -345,7 +343,8 @@ def SplitMakeVars(s):
   begin = s.find('$(')
   end = 0
   while begin != -1:
-    l.append(s[end:begin])
+    if begin != end:
+      l.append(s[end:begin])
     end = s.find(')', begin)
     assert end != -1, 'Unclosed variable at col %d: %s' % (begin, s)
     end += 1
