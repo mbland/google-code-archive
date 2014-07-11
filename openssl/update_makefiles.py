@@ -334,29 +334,46 @@ def SplitMakeVars(s):
   Make variable present in the original string. Each element containing a Make
   variable will begin with '$(' (or '${') and end with ')' (or '}').
 
-  Does not currently support nested variable expansions.
+  If variable expressions are nested, the innermost expansions will be parsed
+  out.
 
   Args:
     s: string to split
   """
+  OPEN_CHARS = '({'
+  CLOSE_CHARS = '})'
   l = []
   begin = s.find('$')
   end = 0
   while begin != -1:
     open_pos = begin + 1
     # Skip shell vars that begin with '$$'.
-    if (open_pos == len(s) or s[open_pos] not in '({' or
+    if (open_pos == len(s) or s[open_pos] not in OPEN_CHARS or
         (begin != 0 and s[begin - 1] == '$')):
       begin = s.find('$', begin + 1)
       continue
+
+    # Parse out the innermost nested variable name.
+    i = begin
+    close_char = s[open_pos] == '(' and ')' or '}'
+    while i != len(s):
+      c = s[i]
+      if c == close_char:
+        break
+      j = i + 1
+      if c == '$' and j != len(s) and s[j] in '({':
+        begin = i
+        close_char = s[j] == '(' and ')' or '}'
+      i += 1
+
+    assert i != len(s), 'Unclosed variable at col %d: %s' % (begin, s)
     if begin != end:
       l.append(s[end:begin])
-    close_char = s[open_pos] == '(' and ')' or '}'
-    end = s.find(close_char, begin)
-    assert end != -1, 'Unclosed variable at col %d: %s' % (begin, s)
-    end += 1
+
+    end = i + 1
     l.append(s[begin:end])
     begin = s.find('$', end)
+
   if end != len(s):
     l.append(s[end:])
   return l

@@ -49,6 +49,17 @@ class SplitMakeVarsTest(unittest.TestCase):
     self.assertListEqual(['${FOO}', ' bar baz $'],
         update_makefiles.SplitMakeVars('${FOO} bar baz $'))
 
+  def testParseInnermostNestedVariable(self):
+    self.assertListEqual(['$(function0 $(function1 ', '$(foo)', ') bar)'],
+        update_makefiles.SplitMakeVars(
+            '$(function0 $(function1 $(foo)) bar)'))
+
+  def testParseMultipleNestedVariables(self):
+    self.assertListEqual(
+        ['$(function0 $(function1 ', '$(foo)', ') ', '${bar}', ')'],
+        update_makefiles.SplitMakeVars(
+            '$(function0 $(function1 $(foo)) ${bar})'))
+
 
 class ReplaceVarNameTest(unittest.TestCase):
 
