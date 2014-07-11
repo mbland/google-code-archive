@@ -362,6 +362,35 @@ def SplitMakeVars(s):
   return l
 
 
+def ReplaceVarName(s, orig_name, new_name):
+  """Replace instances in s of orig_name with new_name.
+
+  Args:
+    s: string to process; it must begin with "$(" (or "${"
+      and end with ")" (or "}")
+    orig_name: the original variable name
+    new_name: the new variable name
+  Returns:
+    s with every instance of orig_name replaced by new_name
+  """
+  assert (len(s) > 3 and s.startswith('$') and
+          s[1] in '({' and s[-1] in '})'), 'Malformed var string: "%s"' % s
+  l = []
+  begin = s.find(orig_name)
+  end = 0
+  while begin != -1:
+    end_name = begin + len(orig_name)
+    if s[begin - 1] in '({ ' and s[end_name] in ' :})':
+      if begin != end:
+        l.append(s[end:begin])
+      l.append(new_name)
+      end = end_name
+    begin = s.find(orig_name, end_name)
+  if end != len(s):
+    l.append(s[end:])
+  return ''.join(l)
+
+
 class Makefile(object):
   """Representation of all of the variables and targets in a Makefile.
 

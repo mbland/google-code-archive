@@ -50,5 +50,36 @@ class SplitMakeVarsTest(unittest.TestCase):
         update_makefiles.SplitMakeVars('${FOO} bar baz $'))
 
 
+class ReplaceVarNameTest(unittest.TestCase):
+
+  def testNoReplacement(self):
+    self.assertEqual('$(BAR)',
+        update_makefiles.ReplaceVarName('$(BAR)', 'FOO', 'FOO_new'))
+
+  def testBasicReplacement(self):
+    self.assertEqual('$(FOO_new)',
+        update_makefiles.ReplaceVarName('$(FOO)', 'FOO', 'FOO_new'))
+
+  def testReplacementNotNeeded(self):
+    self.assertEqual('$(FOO_new)',
+        update_makefiles.ReplaceVarName('$(FOO_new)', 'FOO', 'FOO_new'))
+
+  def testDoNotReplaceSubstring(self):
+    self.assertEqual('$(FOOFOOFOO)',
+        update_makefiles.ReplaceVarName('$(FOOFOOFOO)', 'FOO', 'FOO_new'))
+
+  def testReplacementCurlyBraces(self):
+    self.assertEqual('${FOO_new}',
+        update_makefiles.ReplaceVarName('${FOO}', 'FOO', 'FOO_new'))
+
+  def testReplacementSubstitutionReference(self):
+    self.assertEqual('${FOO_new:.d=.c}',
+        update_makefiles.ReplaceVarName('${FOO:.d=.c}', 'FOO', 'FOO_new'))
+
+  def testReplacementFunction(self):
+    self.assertEqual('$(origin FOO_new)',
+        update_makefiles.ReplaceVarName('$(origin FOO)', 'FOO', 'FOO_new'))
+
+
 if __name__ == '__main__':
   unittest.main()
