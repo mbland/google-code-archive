@@ -33,6 +33,22 @@ class SplitMakeVarsTest(unittest.TestCase):
     self.assertListEqual(['$(FOO)', ' bar ', '$(BAZ)'],
         update_makefiles.SplitMakeVars('$(FOO) bar $(BAZ)'))
 
+  def testHandleCurlyBraces(self):
+    self.assertListEqual(['${FOO}', ' bar ', '$(BAZ)'],
+        update_makefiles.SplitMakeVars('${FOO} bar $(BAZ)'))
+
+  def testIgnoreShellVars(self):
+    self.assertListEqual(['$${FOO} bar ', '$(BAZ)'],
+        update_makefiles.SplitMakeVars('$${FOO} bar $(BAZ)'))
+
+  def testIgnoreDollarSignNotFollowedByParenOrBrace(self):
+    self.assertListEqual(['${FOO}', ' bar $baz'],
+        update_makefiles.SplitMakeVars('${FOO} bar $baz'))
+
+  def testIgnoreDollarSignAtEndOfLine(self):
+    self.assertListEqual(['${FOO}', ' bar baz $'],
+        update_makefiles.SplitMakeVars('${FOO} bar baz $'))
+
 
 if __name__ == '__main__':
   unittest.main()
