@@ -370,6 +370,10 @@ class Makefile(object):
     makefile: path to the Makefile
     variables: hash of variable name => Variable
     targets: a hash of target name => Target
+    common_vars: names of variables that also appear in other Makefiles
+    common_targets: names of targets that also appear in other Makefiles
+    top_vars: names of variables that also appear in top-level Makefiles
+    top_targets: names of targets that also appear in top-level Makefiles
   """
 
   class Variable(object):
@@ -402,6 +406,10 @@ class Makefile(object):
     self._suffix = '_%s' % os.path.dirname(makefile).replace(os.path.sep, '_')
     self.variables = {}
     self.targets = {}
+    self.common_vars = set()
+    self.common_targets = set()
+    self.top_vars = set()
+    self.top_targets = set()
 
   def __str__(self):
     variable_names = self.variables.keys()
@@ -621,6 +629,19 @@ class MakefileInfo(object):
         self.top_makefiles, self.top_vars, self.top_targets)
     MapVarsAndTargetsToFiles(
         self.all_makefiles, self.all_vars, self.all_targets)
+
+    for m in self.all_makefiles.values():
+      m.top_targets.update([t for t in m.targets if t in self.top_targets])
+      m.top_vars.update([v for v in m.variables if v in self.top_vars])
+
+    for v, files in self.all_vars.iteritems():
+      if len(files) != 1:
+        for f in files:
+          self.all_makefiles[f[0]].common_vars.add(v)
+    for t, files in self.all_targets.iteritems():
+      if len(files) != 1:
+        for f in files:
+          self.all_makefiles[f[0]].common_targets.add(t)
 
   def PrintCommonVarsAndTargets(self):
     """Prints top-level vars and targets, then those in multiple files.
