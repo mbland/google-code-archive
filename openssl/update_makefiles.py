@@ -587,44 +587,63 @@ def PrintVarsAndTargets(items, preamble, common_only=False):
       print '  %s: %s' % (f[0], f[1]),
 
 
-def PrintCommonVarsAndTargets():
-  """Prints top-level vars and targets, then those defined in multiple files.
+class MakefileInfo(object):
+  """Contains all the Makefile information for the entire project.
 
-  See the docstring for PrintVarsAndTargets() for more details.
+  Attributes:
+    top_makefiles: hash of makefile_path -> top-level Makefile objects
+    top_vars: hash of vars -> [(top-level path, definition)]
+    top_targets: hash of targets -> [(top-level path, prereqs, recipe)]
+    all_makefiles: hash of makefile_path -> all Makefile objects
+    all_vars: hash of vars -> [(makefile path, definition)]
+    all_targets: hash of targets -> [(makefile path, prereqs, recipe)]
   """
-  top_makefiles = {}
-  top_vars = {}
-  top_targets = {}
-  all_makefiles = {}
-  all_vars = {}
-  all_targets = {}
 
-  CollectVarsAndTargets('configure.mk', top_makefiles)
-  CollectVarsAndTargets('Makefile', top_makefiles)
-  all_makefiles.update(top_makefiles)
+  def __init__(self):
+    self.top_makefiles = {}
+    self.top_vars = {}
+    self.top_targets = {}
+    self.all_makefiles = {}
+    self.all_vars = {}
+    self.all_targets = {}
 
-  for d in os.listdir('.'):
-    if os.path.isdir(d):
-      os.path.walk(d, CollectVarsAndTargetsRecursive, all_makefiles)
+  def Init(self):
+    """Parses the Makefiles and populates the attribute hashes."""
+    CollectVarsAndTargets('configure.mk', self.top_makefiles)
+    CollectVarsAndTargets('Makefile', self.top_makefiles)
+    self.all_makefiles.update(self.top_makefiles)
 
-  MapVarsAndTargetsToFiles(top_makefiles, top_vars, top_targets)
-  MapVarsAndTargetsToFiles(all_makefiles, all_vars, all_targets)
+    for d in os.listdir('.'):
+      if os.path.isdir(d):
+        os.path.walk(d, CollectVarsAndTargetsRecursive, self.all_makefiles)
 
-  PrintVarsAndTargets(top_vars, '*** TOP-LEVEL VARS ***')
-  PrintVarsAndTargets(top_targets, '*** TOP-LEVEL TARGETS ***')
-  PrintVarsAndTargets(all_vars, '*** VARS ***', common_only=True)
-  PrintVarsAndTargets(all_targets, '*** TARGETS ***', common_only=True)
+    MapVarsAndTargetsToFiles(
+        self.top_makefiles, self.top_vars, self.top_targets)
+    MapVarsAndTargetsToFiles(
+        self.all_makefiles, self.all_vars, self.all_targets)
+
+  def PrintCommonVarsAndTargets(self):
+    """Prints top-level vars and targets, then those in multiple files.
+
+    See the docstring for PrintVarsAndTargets() for more details.
+    """
+    PrintVarsAndTargets(self.top_vars, '*** TOP-LEVEL VARS ***')
+    PrintVarsAndTargets(self.top_targets, '*** TOP-LEVEL TARGETS ***')
+    PrintVarsAndTargets(self.all_vars, '*** VARS ***', common_only=True)
+    PrintVarsAndTargets(self.all_targets, '*** TARGETS ***', common_only=True)
 
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
-  parser.add_argument('--common',
+  parser.add_argument('--print_common',
         help='Print common targets and vars; skip updates',
         action='store_true')
   args = parser.parse_args()
 
-  if args.common:
-    PrintCommonVarsAndTargets()
+  if args.print_common:
+    info = MakefileInfo()
+    info.Init()
+    info.PrintCommonVarsAndTargets()
     sys.exit(0)
 
   # Read the top-level configure file, if it exists.
