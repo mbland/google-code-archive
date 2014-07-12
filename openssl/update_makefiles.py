@@ -635,6 +635,16 @@ class MakefileInfo(object):
     PrintVarsAndTargets(self.all_targets, '*** TARGETS ***', common_only=True)
 
 
+def HasVarOpen(segment):
+  """Returns True if segment contains a Make variable opening."""
+  for open_delim, close_delim in [('$(', ')'), ('${', '}')]:
+    open_pos = segment.rfind(open_delim)
+    close_pos = segment.rfind(close_delim)
+    if open_pos != -1 and (close_pos == -1 or close_pos < open_pos):
+      return True
+  return False
+
+
 def ReplaceMakefileToken(s, orig_token, new_token):
   """Replaces instances in s of orig_token with new_token.
 
@@ -652,13 +662,18 @@ def ReplaceMakefileToken(s, orig_token, new_token):
   """
   SHELL_VAR_PREFIX = '$${'
   SVP_LEN = len(SHELL_VAR_PREFIX)
+  START_DELIM = '({ '
+  END_DELIM = ' :=})'
   l = []
   i = s.find(orig_token)
   begin_unreplaced_segment = 0
+
   while i != -1:
     end_token = i + len(orig_token)
-    if ((i == 0 or s[i - 1] in '({ ') and s[end_token] in ' :=})' and
-         (i < SVP_LEN or s[i - SVP_LEN:i] != SHELL_VAR_PREFIX)):
+    if ((i == 0 or s[i - 1] in START_DELIM) and
+         (end_token == len(s) or s[end_token] in END_DELIM) and
+         (i < SVP_LEN or s[i - SVP_LEN:i] != SHELL_VAR_PREFIX) and
+         (s[0] != '\t' or HasVarOpen(s[begin_unreplaced_segment:i]))):
       if i != begin_unreplaced_segment:
         l.append(s[begin_unreplaced_segment:i])
       l.append(new_token)

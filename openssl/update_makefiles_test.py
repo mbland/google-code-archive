@@ -16,6 +16,31 @@ import cStringIO
 import unittest
 
 
+class HasVarOpenTest(unittest.TestCase):
+
+  def testNoVarOpen(self):
+    self.assertFalse(update_makefiles.HasVarOpen(''))
+    self.assertFalse(update_makefiles.HasVarOpen('FOO'))
+
+  def testHasVarOpen(self):
+    self.assertTrue(update_makefiles.HasVarOpen('$(FOO'))
+    self.assertTrue(update_makefiles.HasVarOpen('${FOO'))
+    self.assertTrue(update_makefiles.HasVarOpen('$( FOO'))
+    self.assertTrue(update_makefiles.HasVarOpen('${ FOO'))
+
+  def testNotOpenEarlierVar(self):
+    self.assertFalse(update_makefiles.HasVarOpen('$(FOO) BAR'))
+    self.assertFalse(update_makefiles.HasVarOpen('${FOO} BAR'))
+    self.assertFalse(update_makefiles.HasVarOpen('$( FOO ) BAR'))
+    self.assertFalse(update_makefiles.HasVarOpen('${ FOO } BAR'))
+
+  def testOpenEarlierVar(self):
+    self.assertTrue(update_makefiles.HasVarOpen('$(FOO) $(BAR'))
+    self.assertTrue(update_makefiles.HasVarOpen('${FOO} ${BAR'))
+    self.assertTrue(update_makefiles.HasVarOpen('$( FOO ) $( BAR'))
+    self.assertTrue(update_makefiles.HasVarOpen('${ FOO } ${ BAR'))
+
+
 class ReplaceMakefileTokenTest(unittest.TestCase):
 
   def testNoReplacement(self):
@@ -113,6 +138,11 @@ class ReplaceMakefileTokenTest(unittest.TestCase):
     self.assertEqual('\tfrob $${FOO} bar',
         update_makefiles.ReplaceMakefileToken(
             '\tfrob $${FOO} bar', 'FOO', 'FOO_bad'))
+
+  def testIgnoreRecipeArgThatMatchesVarName(self):
+    self.assertEqual('\tfrob FOO=$(FOO_new) bar',
+        update_makefiles.ReplaceMakefileToken(
+            '\tfrob FOO=$(FOO) bar', 'FOO', 'FOO_new'))
 
 
 if __name__ == '__main__':
