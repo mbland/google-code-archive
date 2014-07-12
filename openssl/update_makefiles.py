@@ -505,6 +505,8 @@ def CollectVarsAndTargets(makefile_path, makefiles):
         else:
           prerequisites = [prerequisites]
 
+  if recipe is not None:
+    makefile.add_target(target_name, prerequisites, ''.join(recipe))
   makefiles[makefile_path] = makefile
 
 
