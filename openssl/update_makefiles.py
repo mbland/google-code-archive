@@ -406,7 +406,9 @@ class Makefile(object):
     self._suffix = '_%s' % os.path.dirname(makefile).replace(os.path.sep, '_')
     self.variables = {}
     self.targets = {}
-    self.common_vars = set()
+    # We need to update TOP everywhere too, though it's been extracted into
+    # the {GNU,BSD}makefiles.
+    self.common_vars = set('TOP')
     self.common_targets = set()
     self.top_vars = set()
     self.top_targets = set()
