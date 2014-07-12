@@ -374,9 +374,9 @@ class Makefile(object):
     self.suffix = mfdir and '_%s' % mfdir.replace(os.path.sep, '_') or ''
     self.variables = {}
     self.targets = {}
-    # We need to update TOP everywhere too, though it's been extracted into
-    # the {GNU,BSD}makefiles.
-    self.common_vars = set(['TOP'])
+    # We need to update TOP and SRC everywhere, including the
+    # {GNU,BSD}makefiles.
+    self.common_vars = set(['TOP', 'SRC'])
     self.common_targets = set()
     self.top_vars = set()
     self.top_targets = set()
@@ -427,13 +427,20 @@ class Makefile(object):
   def LocalTargetMap(self):
     """Returns a hash of target name -> local name for self.common_targets.
 
-    Omits targets that are defined in terms of variables.
+    Omits targets that are defined in terms of variables and suffix targets.
     """
     targets = {}
     for t in self.common_targets:
-      if '$' not in t:
+      if t[0] != '.' and '$' not in t:
         targets[t] = '%s%s' % (t, self.suffix)
     return targets
+
+  def LocalVariableMap(self):
+    """Returns a hash of var name -> local name for self.common_vars."""
+    variables = {}
+    for v in self.common_vars:
+      variables[v] = '%s%s' % (v, self.suffix)
+    return variables
 
 
 def CollectVarsAndTargets(makefile_path, makefiles):
@@ -693,8 +700,7 @@ def UpdateTargetNames(infile, outfile, targets):
   recipes and comments are ignored. Changes the names of targets that also
   appear in other Makefiles to have a directory-specific suffix, and replaces
   those original targets with dependency-only targets that depend on the
-  Makefile-local versions. Skips targets that are defined in terms of
-  variables.
+  Makefile-local versions.
 
   Args:
     infile: Makefile to read
@@ -739,6 +745,91 @@ def UpdateTargetNames(infile, outfile, targets):
     print '%s: updated common targets' % infile.name
 
 
+def UpdateVariableNames(infile, outfile, variables):
+  """Updates names of variables appearing in other Makefiles.
+
+  Args:
+    infile: Makefile to read
+    outfile: Makefile to write
+    variables: hash of variable name -> Makefile-specific variable name
+  """
+  updated = False
+
+  for line in infile:
+    orig_line = line
+    for orig_v in variables:
+      line = ReplaceMakefileToken(line, orig_v, variables[orig_v])
+    updated = updated or line != orig_line
+    print >>outfile, line,
+
+  if updated:
+    print '%s: updated common variables' % infile.name
+
+
+def EmitSuffixTargetRules(infile, outfile, variables, suffix):
+  """Emits suffix target rules if needed.
+
+  Different Makefiles set different values for variable used in default make
+  rules. For those Makefiles, we redefine the default to use Makefile-specific
+  variable values.
+
+  Args:
+    infile: Makefile to read
+    outfile: Makefile to write
+    variables: hash of variable name -> Makefile-specific variable name
+    suffix: Makefile-specific suffix string
+  """
+  suffix_targets = {}
+  last_line_blank = False
+
+  if 'CFLAGS' in variables:
+    suffix_targets['.c.o:'] = (
+        '\t$(CC) $(CFLAGS%s) $(CPPFLAGS) -c -o $@ $<' % suffix)
+  if 'ASFLAGS' in variables:
+    suffix_targets['.s.o:'] = '\t$(AS) $(ASFLAGS%s) -o $@ $<' % suffix
+  if 'CPP' in variables:
+    suffix_targets['.S.s:'] = '\t$(CPP%s) $(CPPFLAGS) -o $@ $<' % suffix
+
+  for line in infile:
+    tmp = {}
+    tmp.update(suffix_targets)
+    for t in suffix_targets:
+      if line.startswith(t):
+        del tmp[t]
+    suffix_targets = tmp
+    last_line_blank = line == '\n'
+    print >>outfile, line,
+
+  targets_to_emit = suffix_targets.keys()
+  if not targets_to_emit:
+    return
+
+  targets_to_emit.sort()
+  if not last_line_blank:
+    print >>outfile
+  for t in targets_to_emit:
+    print >>outfile, t
+    print >>outfile, suffix_targets[t]
+  print '%s: emitted suffix target rules' % infile.name
+
+
+def UpdateRecursiveMakeArgs(infile, outfile, suffix):
+  """Updates recursive make commands that pass command-line variables.
+
+  Args:
+    infile: Makefile to read
+    outfile: Makefile to write
+    suffix: Makefile-specific suffix string for the current makefile
+  """
+  old_includes = ' INCLUDES='
+  new_includes = ' INCLUDES%s_$$i=' % suffix
+  for line in infile:
+    if '$(MAKE)' in line and old_includes in line:
+      line = line.replace(old_includes, new_includes)
+      print '%s: updated recursive make command line' % infile.name
+    print >>outfile, line,
+
+
 def UpdateMakefilesStage1(info, dirname, fnames):
   """Applies a series of updates to dirname/Makefile (if it exists).
 
@@ -753,12 +844,33 @@ def UpdateMakefilesStage1(info, dirname, fnames):
   if 'Makefile' not in fnames: return
   makefile_name = os.path.join(dirname, 'Makefile')
   makefile = info.all_makefiles[makefile_name]
+  target_map = makefile.LocalTargetMap()
+  variable_map = makefile.LocalVariableMap()
+  gnu_makefile_name = os.path.join(dirname, 'GNUmakefile')
+  bsd_makefile_name = os.path.join(dirname, 'BSDmakefile')
 
   def UpdateTargetNamesHelper(infile, outfile):
-    """Binds a Makefile object to UpdateTargetNames()."""
-    UpdateTargetNames(infile, outfile, makefile.LocalTargetMap())
+    """Binds the local target map to UpdateTargetNames()."""
+    UpdateTargetNames(infile, outfile, target_map)
+
+  def UpdateVariableNamesHelper(infile, outfile):
+    """Binds the local variable map to UpdateVariableNames()."""
+    UpdateVariableNames(infile, outfile, variable_map)
+
+  def EmitSuffixTargetRulesHelper(infile, outfile):
+    """Binds the local variable map and suffix to EmitSuffixTargetRules()."""
+    EmitSuffixTargetRules(infile, outfile, variable_map, makefile.suffix)
+
+  def UpdateRecursiveMakeArgsHelper(infile, outfile):
+    """Binds the local Makefile suffix to UpdateRecursiveMakeArgs()."""
+    UpdateRecursiveMakeArgs(infile, outfile, makefile.suffix)
 
   UpdateFile(makefile_name, UpdateTargetNamesHelper)
+  UpdateFile(makefile_name, UpdateVariableNamesHelper)
+  UpdateFile(gnu_makefile_name, UpdateVariableNamesHelper)
+  UpdateFile(bsd_makefile_name, UpdateVariableNamesHelper)
+  UpdateFile(makefile_name, EmitSuffixTargetRulesHelper)
+  UpdateFile(makefile_name, UpdateRecursiveMakeArgsHelper)
 
 
 if __name__ == '__main__':
