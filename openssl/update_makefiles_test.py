@@ -16,51 +16,6 @@ import cStringIO
 import unittest
 
 
-class SplitMakeVarsTest(unittest.TestCase):
-
-  def testEmptyString(self):
-    self.assertListEqual([], update_makefiles.SplitMakeVars(''))
-
-  def testNoMakeVarsPresent(self):
-    self.assertListEqual(['foo bar baz'],
-        update_makefiles.SplitMakeVars('foo bar baz'))
-
-  def testSingleMakeVar(self):
-    self.assertListEqual(['foo ', '$(BAR)', ' baz'],
-        update_makefiles.SplitMakeVars('foo $(BAR) baz'))
-
-  def testMultipleMakeVars(self):
-    self.assertListEqual(['$(FOO)', ' bar ', '$(BAZ)'],
-        update_makefiles.SplitMakeVars('$(FOO) bar $(BAZ)'))
-
-  def testHandleCurlyBraces(self):
-    self.assertListEqual(['${FOO}', ' bar ', '$(BAZ)'],
-        update_makefiles.SplitMakeVars('${FOO} bar $(BAZ)'))
-
-  def testIgnoreShellVars(self):
-    self.assertListEqual(['$${FOO} bar ', '$(BAZ)'],
-        update_makefiles.SplitMakeVars('$${FOO} bar $(BAZ)'))
-
-  def testIgnoreDollarSignNotFollowedByParenOrBrace(self):
-    self.assertListEqual(['${FOO}', ' bar $baz'],
-        update_makefiles.SplitMakeVars('${FOO} bar $baz'))
-
-  def testIgnoreDollarSignAtEndOfLine(self):
-    self.assertListEqual(['${FOO}', ' bar baz $'],
-        update_makefiles.SplitMakeVars('${FOO} bar baz $'))
-
-  def testParseInnermostNestedVariable(self):
-    self.assertListEqual(['$(function0 $(function1 ', '$(foo)', ') bar)'],
-        update_makefiles.SplitMakeVars(
-            '$(function0 $(function1 $(foo)) bar)'))
-
-  def testParseMultipleNestedVariables(self):
-    self.assertListEqual(
-        ['$(function0 $(function1 ', '$(foo)', ') ', '${bar}', ')'],
-        update_makefiles.SplitMakeVars(
-            '$(function0 $(function1 $(foo)) ${bar})'))
-
-
 class ReplaceMakefileTokenTest(unittest.TestCase):
 
   def testNoReplacement(self):
