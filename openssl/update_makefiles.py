@@ -34,7 +34,7 @@ import shutil
 import sys
 
 MAKE_DEPEND_LINE = '# DO NOT DELETE THIS LINE -- make depend depends on it.\n'
-CONFIG_VAR_PATTERN = re.compile('([^# \t=]+) *=')
+VAR_DEFINITION_PATTERN = re.compile('([^# \t=]+) *=')
 CONFIG_VARS = {}
 TARGET_PATTERN = re.compile('([^#\t=]+):')
 
@@ -182,7 +182,7 @@ def ReadConfigureVars(config_filename):
   config_vars = {}
   with open(config_filename, 'r') as config_file:
     for line in config_file:
-      m = CONFIG_VAR_PATTERN.match(line)
+      m = VAR_DEFINITION_PATTERN.match(line)
       if m:
         config_vars[m.group(1)] = 1
   return config_vars
@@ -207,7 +207,7 @@ def RemoveConfigureVars(infile, outfile):
   """
   skip_next_line = False
   for line in infile:
-    m = CONFIG_VAR_PATTERN.match(line)
+    m = VAR_DEFINITION_PATTERN.match(line)
     if (m and m.group(1) in CONFIG_VARS) or skip_next_line:
       if not skip_next_line:
         print '%s: Removing variable %s' % (infile.name, m.group(1))
@@ -489,7 +489,7 @@ def CollectVarsAndTargets(makefile_path, makefiles):
         prerequisites = None
         recipe = None
 
-      config_match = CONFIG_VAR_PATTERN.match(line)
+      config_match = VAR_DEFINITION_PATTERN.match(line)
       target_match = TARGET_PATTERN.match(line)
       assert not (config_match and target_match), (
         '%s: %s\n  var: %s\n  target:%s' %
