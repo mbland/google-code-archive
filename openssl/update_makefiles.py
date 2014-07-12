@@ -423,6 +423,17 @@ class Makefile(object):
       assert not (target.recipe and recipe), (
           '%s: duplicate recipes for %s' % (self.makefile, target))
 
+  def LocalTargetMap(self):
+    """Returns a hash of target name -> local name for self.common_targets.
+
+    Omits targets that are defined in terms of variables.
+    """
+    targets = {}
+    for t in self.common_targets:
+      if '$' not in t:
+        targets[t] = '%s%s' % (t, self.suffix)
+    return targets
+
 
 def CollectVarsAndTargets(makefile_path, makefiles):
   """Parses a Makefile object from a Makefile.
@@ -657,6 +668,82 @@ def ReplaceMakefileToken(s, orig_token, new_token):
   return ''.join(l)
 
 
+def UpdateTargetNames(infile, outfile, makefile):
+  """Updates names of targets appearing in other Makefiles.
+
+  Only processes variable definitions, target names, and target prerequisites;
+  recipes and comments are ignored. Changes the names of targets that also
+  appear in other Makefiles to have a directory-specific suffix, and replaces
+  those original targets with dependency-only targets that depend on the
+  Makefile-local versions. Skips targets that are defined in terms of
+  variables.
+
+  Args:
+    infile: Makefile to read
+    outfile: Makefile to write
+    makefile: Makefile object containing information on common and top-level
+      targets
+  """
+  targets = makefile.LocalTargetMap()
+  continued = False
+  updated = False
+
+  for line in infile:
+    if continued:
+      var_match = None
+      target_match = None
+    else:
+      var_match = VAR_DEFINITION_PATTERN.match(line)
+      target_match = TARGET_PATTERN.match(line)
+      assert not (var_match and target_match), (
+        '%s: %s\n  var: %s\n  target:%s' %
+        (makefile.name, line, var_match.group(1), target_match.group(1)))
+
+    if target_match:
+      target_name = target_match.group(1)
+      if target_name in targets:
+        # Emit a prerequisite-only top-level rule if not yet present.
+        replacement_rule = '%s: %s' % (target_name, targets[target_name])
+        if line.startswith(replacement_rule):
+          print >>outfile, line,
+          continue
+        print >>outfile, replacement_rule
+        updated = True
+
+    if continued or var_match or target_match:
+      orig_line = line
+      for orig_t in targets:
+        line = ReplaceMakefileToken(line, orig_t, targets[orig_t])
+      continued = Continues(line)
+      updated = updated or line != orig_line
+
+    print >>outfile, line,
+
+  if updated:
+    print '%s: updated common targets' % infile.name
+
+
+def UpdateMakefilesStage1(info, dirname, fnames):
+  """Applies a series of updates to dirname/Makefile (if it exists).
+
+  Passed to os.path.walk() to process all the Makefiles in the OpenSSL source
+  tree. Performs heavier-duty changes than UpdateMakefilesStage0.
+
+  Args:
+    info: MakefileInfo object
+    dirname: current directory path
+    fnames: list of contents in the current directory
+  """
+  if 'Makefile' not in fnames: return
+  makefile_name = os.path.join(dirname, 'Makefile')
+
+  def UpdateTargetNamesHelper(infile, outfile):
+    """Binds a Makefile object to UpdateTargetNames()."""
+    UpdateTargetNames(infile, outfile, info.all_makefiles[makefile_name])
+
+  UpdateFile(makefile_name, UpdateTargetNamesHelper)
+
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--print_common',
@@ -687,6 +774,13 @@ if __name__ == '__main__':
   UpdateFile('Makefile.org', RemoveConfigureVars)
   UpdateFile('Makefile.fips', RemoveConfigureVars)
   UpdateFile('Makefile.shared', RemoveConfigureVars)
+
+  info = MakefileInfo()
+  info.Init()
+
+  for d in os.listdir('.'):
+    if os.path.isdir(d):
+      os.path.walk(d, UpdateMakefilesStage1, info)
 
   # TODO: Strip remaining top-level vars from Makefiles when lower-level
   # Makefiles are included from the top-level.
