@@ -303,7 +303,7 @@ def UpdateFile(orig_name, update_func):
   os.rename(updated_name, orig_name)
 
 
-def UpdateMakefiles(unused_arg, dirname, fnames):
+def UpdateMakefilesStage0(unused_arg, dirname, fnames):
   """Applies a series of updates to dirname/Makefile (if it exists).
 
   Passed to os.path.walk() to process all the Makefiles in the OpenSSL source
@@ -680,7 +680,7 @@ if __name__ == '__main__':
 
   for d in os.listdir('.'):
     if os.path.isdir(d):
-      os.path.walk(d, UpdateMakefiles, None)
+      os.path.walk(d, UpdateMakefilesStage0, None)
 
   CreateGnuMakefile('.')
   CreateBsdMakefile('.')
