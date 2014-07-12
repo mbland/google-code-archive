@@ -327,40 +327,6 @@ def UpdateMakefilesStage0(unused_arg, dirname, fnames):
   UpdateFile(makefile_name, CatConfigureAndMakefileShared)
 
 
-def ReplaceMakefileToken(s, orig_token, new_token):
-  """Replaces instances in s of orig_token with new_token.
-
-  Intended to process Make variable assignment expressions, variable
-  definitions, target names, target prerequisites, and target recipes.
-  Takes care to replace only instances of orig_token that correspond to
-  full tokens, rather than substrings of larger tokens.
-
-  Args:
-    s: string to process
-    orig_token: the original token to replace
-    new_token: the replacement token
-  Returns:
-    s with every instance of orig_token replaced by new_token
-  """
-  SHELL_VAR_PREFIX = '$${'
-  SVP_LEN = len(SHELL_VAR_PREFIX)
-  l = []
-  i = s.find(orig_token)
-  begin_unreplaced_segment = 0
-  while i != -1:
-    end_token = i + len(orig_token)
-    if ((i == 0 or s[i - 1] in '({ ') and s[end_token] in ' :=})' and
-         (i < SVP_LEN or s[i - SVP_LEN:i] != SHELL_VAR_PREFIX)):
-      if i != begin_unreplaced_segment:
-        l.append(s[begin_unreplaced_segment:i])
-      l.append(new_token)
-      begin_unreplaced_segment = end_token
-    i = s.find(orig_token, end_token)
-  if begin_unreplaced_segment != len(s):
-    l.append(s[begin_unreplaced_segment:])
-  return ''.join(l)
-
-
 class Makefile(object):
   """Representation of all of the variables and targets in a Makefile.
 
@@ -655,6 +621,40 @@ class MakefileInfo(object):
     PrintVarsAndTargets(self.top_targets, '*** TOP-LEVEL TARGETS ***')
     PrintVarsAndTargets(self.all_vars, '*** VARS ***', common_only=True)
     PrintVarsAndTargets(self.all_targets, '*** TARGETS ***', common_only=True)
+
+
+def ReplaceMakefileToken(s, orig_token, new_token):
+  """Replaces instances in s of orig_token with new_token.
+
+  Intended to process Make variable assignment expressions, variable
+  definitions, target names, target prerequisites, and target recipes.
+  Takes care to replace only instances of orig_token that correspond to
+  full tokens, rather than substrings of larger tokens.
+
+  Args:
+    s: string to process
+    orig_token: the original token to replace
+    new_token: the replacement token
+  Returns:
+    s with every instance of orig_token replaced by new_token
+  """
+  SHELL_VAR_PREFIX = '$${'
+  SVP_LEN = len(SHELL_VAR_PREFIX)
+  l = []
+  i = s.find(orig_token)
+  begin_unreplaced_segment = 0
+  while i != -1:
+    end_token = i + len(orig_token)
+    if ((i == 0 or s[i - 1] in '({ ') and s[end_token] in ' :=})' and
+         (i < SVP_LEN or s[i - SVP_LEN:i] != SHELL_VAR_PREFIX)):
+      if i != begin_unreplaced_segment:
+        l.append(s[begin_unreplaced_segment:i])
+      l.append(new_token)
+      begin_unreplaced_segment = end_token
+    i = s.find(orig_token, end_token)
+  if begin_unreplaced_segment != len(s):
+    l.append(s[begin_unreplaced_segment:])
+  return ''.join(l)
 
 
 if __name__ == '__main__':
