@@ -403,7 +403,8 @@ class Makefile(object):
 
   def __init__(self, makefile):
     self.makefile = makefile
-    self._suffix = '_%s' % os.path.dirname(makefile).replace(os.path.sep, '_')
+    mfdir = os.path.dirname(makefile)
+    self.suffix = mfdir and '_%s' % mfdir.replace(os.path.sep, '_') or ''
     self.variables = {}
     self.targets = {}
     # We need to update TOP everywhere too, though it's been extracted into
