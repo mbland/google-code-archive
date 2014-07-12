@@ -61,35 +61,103 @@ class SplitMakeVarsTest(unittest.TestCase):
             '$(function0 $(function1 $(foo)) ${bar})'))
 
 
-class ReplaceVarNameTest(unittest.TestCase):
+class ReplaceMakefileTokenTest(unittest.TestCase):
 
   def testNoReplacement(self):
     self.assertEqual('$(BAR)',
-        update_makefiles.ReplaceVarName('$(BAR)', 'FOO', 'FOO_new'))
+        update_makefiles.ReplaceMakefileToken('$(BAR)', 'FOO', 'FOO_new'))
 
   def testBasicReplacement(self):
     self.assertEqual('$(FOO_new)',
-        update_makefiles.ReplaceVarName('$(FOO)', 'FOO', 'FOO_new'))
+        update_makefiles.ReplaceMakefileToken('$(FOO)', 'FOO', 'FOO_new'))
 
   def testReplacementNotNeeded(self):
     self.assertEqual('$(FOO_new)',
-        update_makefiles.ReplaceVarName('$(FOO_new)', 'FOO', 'FOO_new'))
+        update_makefiles.ReplaceMakefileToken('$(FOO_new)', 'FOO', 'FOO_new'))
 
   def testDoNotReplaceSubstring(self):
     self.assertEqual('$(FOOFOOFOO)',
-        update_makefiles.ReplaceVarName('$(FOOFOOFOO)', 'FOO', 'FOO_new'))
+        update_makefiles.ReplaceMakefileToken(
+            '$(FOOFOOFOO)', 'FOO', 'FOO_new'))
 
   def testReplacementCurlyBraces(self):
     self.assertEqual('${FOO_new}',
-        update_makefiles.ReplaceVarName('${FOO}', 'FOO', 'FOO_new'))
+        update_makefiles.ReplaceMakefileToken('${FOO}', 'FOO', 'FOO_new'))
 
   def testReplacementSubstitutionReference(self):
     self.assertEqual('${FOO_new:.d=.c}',
-        update_makefiles.ReplaceVarName('${FOO:.d=.c}', 'FOO', 'FOO_new'))
+        update_makefiles.ReplaceMakefileToken(
+            '${FOO:.d=.c}', 'FOO', 'FOO_new'))
 
-  def testReplacementFunction(self):
+  def testReplacementInFunction(self):
     self.assertEqual('$(origin FOO_new)',
-        update_makefiles.ReplaceVarName('$(origin FOO)', 'FOO', 'FOO_new'))
+        update_makefiles.ReplaceMakefileToken(
+            '$(origin FOO)', 'FOO', 'FOO_new'))
+
+  def testMultipleReplacementInFunction(self):
+    self.assertEqual('$(origin FOO_new bar FOO_new)',
+        update_makefiles.ReplaceMakefileToken(
+            '$(origin FOO bar FOO)', 'FOO', 'FOO_new'))
+
+  def testReplaceVariableNameInAssignment(self):
+    self.assertEqual('FOO_new = bar baz',
+        update_makefiles.ReplaceMakefileToken(
+            'FOO = bar baz', 'FOO', 'FOO_new'))
+
+  def testReplaceVariableNameInAssignmentNoSpace(self):
+    self.assertEqual('FOO_new=bar baz',
+        update_makefiles.ReplaceMakefileToken(
+            'FOO=bar baz', 'FOO', 'FOO_new'))
+
+  def testReplaceVariableExpansionInAssignment(self):
+    self.assertEqual('FOO=$(BAR_new) baz',
+        update_makefiles.ReplaceMakefileToken(
+            'FOO=$(BAR) baz', 'BAR', 'BAR_new'))
+
+  def testReplaceTargetName(self):
+    self.assertEqual('foo_new: bar baz',
+        update_makefiles.ReplaceMakefileToken(
+            'foo: bar baz', 'foo', 'foo_new'))
+
+  def testReplaceTargetVariableName(self):
+    self.assertEqual('$(FOO_new): bar baz',
+        update_makefiles.ReplaceMakefileToken(
+            '$(FOO): bar baz', 'FOO', 'FOO_new'))
+
+  def testReplaceTargetPartialVariableName(self):
+    self.assertEqual('$(FOO_new)_suffix: bar baz',
+        update_makefiles.ReplaceMakefileToken(
+            '$(FOO)_suffix: bar baz', 'FOO', 'FOO_new'))
+
+  def testReplaceTargetPrerequisiteTarget(self):
+    self.assertEqual('foo: bar_new baz',
+        update_makefiles.ReplaceMakefileToken(
+            'foo: bar baz', 'bar', 'bar_new'))
+
+  def testReplaceTargetPrerequisiteVariable(self):
+    self.assertEqual('foo: $(BAR_new) baz',
+        update_makefiles.ReplaceMakefileToken(
+            'foo: $(BAR) baz', 'BAR', 'BAR_new'))
+
+  def testReplaceTargetSpecificVariableAssignment(self):
+    self.assertEqual('foo: BAR_new = baz',
+        update_makefiles.ReplaceMakefileToken(
+            'foo: BAR = baz', 'BAR', 'BAR_new'))
+
+  def testReplaceTargetSpecificVariableAssignmentNoSpace(self):
+    self.assertEqual('foo: BAR_new=baz',
+        update_makefiles.ReplaceMakefileToken(
+            'foo: BAR=baz', 'BAR', 'BAR_new'))
+
+  def testIgnoreShellVariableInTargetRecipe(self):
+    self.assertEqual('\tfrob $$FOO bar',
+        update_makefiles.ReplaceMakefileToken(
+            '\tfrob $$FOO bar', 'FOO', 'FOO_bad'))
+
+  def testIgnoreShellVariableInTargetRecipeCurlyBraces(self):
+    self.assertEqual('\tfrob $${FOO} bar',
+        update_makefiles.ReplaceMakefileToken(
+            '\tfrob $${FOO} bar', 'FOO', 'FOO_bad'))
 
 
 if __name__ == '__main__':

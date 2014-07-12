@@ -379,32 +379,37 @@ def SplitMakeVars(s):
   return l
 
 
-def ReplaceVarName(s, orig_name, new_name):
-  """Replace instances in s of orig_name with new_name.
+def ReplaceMakefileToken(s, orig_token, new_token):
+  """Replaces instances in s of orig_token with new_token.
+
+  Intended to process Make variable assignment expressions, variable
+  definitions, target names, target prerequisites, and target recipes.
+  Takes care to replace only instances of orig_token that correspond to
+  full tokens, rather than substrings of larger tokens.
 
   Args:
-    s: string to process; it must begin with "$(" (or "${"
-      and end with ")" (or "}")
-    orig_name: the original variable name
-    new_name: the new variable name
+    s: string to process
+    orig_token: the original token to replace
+    new_token: the replacement token
   Returns:
-    s with every instance of orig_name replaced by new_name
+    s with every instance of orig_token replaced by new_token
   """
-  assert (len(s) > 3 and s.startswith('$') and
-          s[1] in '({' and s[-1] in '})'), 'Malformed var string: "%s"' % s
+  SHELL_VAR_PREFIX = '$${'
+  SVP_LEN = len(SHELL_VAR_PREFIX)
   l = []
-  begin = s.find(orig_name)
-  end = 0
-  while begin != -1:
-    end_name = begin + len(orig_name)
-    if s[begin - 1] in '({ ' and s[end_name] in ' :})':
-      if begin != end:
-        l.append(s[end:begin])
-      l.append(new_name)
-      end = end_name
-    begin = s.find(orig_name, end_name)
-  if end != len(s):
-    l.append(s[end:])
+  i = s.find(orig_token)
+  begin_unreplaced_segment = 0
+  while i != -1:
+    end_token = i + len(orig_token)
+    if ((i == 0 or s[i - 1] in '({ ') and s[end_token] in ' :=})' and
+         (i < SVP_LEN or s[i - SVP_LEN:i] != SHELL_VAR_PREFIX)):
+      if i != begin_unreplaced_segment:
+        l.append(s[begin_unreplaced_segment:i])
+      l.append(new_token)
+      begin_unreplaced_segment = end_token
+    i = s.find(orig_token, end_token)
+  if begin_unreplaced_segment != len(s):
+    l.append(s[begin_unreplaced_segment:])
   return ''.join(l)
 
 
