@@ -165,9 +165,10 @@ def AddTopToFilesTarget(infile, outfile):
     outfile: Makefile to write
   """
   FILES_SCRIPT = 'util/files.pl'
-  UPDATE = '%s %s' % (FILES_SCRIPT, 'TOP=$(TOP)')
+  TOP_ARG = '%s %s' % (FILES_SCRIPT, 'TOP=$(TOP')
+  UPDATE = '%s)' % TOP_ARG
   for line in infile:
-    if line.find(FILES_SCRIPT) != -1 and line.find(UPDATE) == -1:
+    if line.find(FILES_SCRIPT) != -1 and line.find(TOP_ARG) == -1:
       print '%s: Adding TOP as argument to files.pl' % infile.name
       line = line.replace(FILES_SCRIPT, UPDATE)
     print >>outfile, line,
@@ -375,7 +376,7 @@ class Makefile(object):
     self.targets = {}
     # We need to update TOP everywhere too, though it's been extracted into
     # the {GNU,BSD}makefiles.
-    self.common_vars = set('TOP')
+    self.common_vars = set(['TOP'])
     self.common_targets = set()
     self.top_vars = set()
     self.top_targets = set()
