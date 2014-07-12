@@ -500,15 +500,15 @@ def CollectVarsAndTargets(makefile_path, makefiles):
         prerequisites = None
         recipe = None
 
-      config_match = VAR_DEFINITION_PATTERN.match(line)
+      var_match = VAR_DEFINITION_PATTERN.match(line)
       target_match = TARGET_PATTERN.match(line)
-      assert not (config_match and target_match), (
+      assert not (var_match and target_match), (
         '%s: %s\n  var: %s\n  target:%s' %
-        (makefile.name, line, config_match.group(1), target_match.group(1)))
+        (makefile.name, line, var_match.group(1), target_match.group(1)))
 
-      if config_match:
-        var_name = config_match.group(1)
-        definition = line[config_match.end():]
+      if var_match:
+        var_name = var_match.group(1)
+        definition = line[var_match.end():]
         if not Continues(line):
           makefile.add_var(var_name, definition)
           var_name = None
