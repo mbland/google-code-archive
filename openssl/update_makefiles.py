@@ -684,7 +684,7 @@ def ReplaceMakefileToken(s, orig_token, new_token):
   return ''.join(l)
 
 
-def UpdateTargetNames(infile, outfile, makefile):
+def UpdateTargetNames(infile, outfile, targets):
   """Updates names of targets appearing in other Makefiles.
 
   Only processes variable definitions, target names, and target prerequisites;
@@ -697,10 +697,8 @@ def UpdateTargetNames(infile, outfile, makefile):
   Args:
     infile: Makefile to read
     outfile: Makefile to write
-    makefile: Makefile object containing information on common and top-level
-      targets
+    targets: hash of target name -> Makefile-specific target name
   """
-  targets = makefile.LocalTargetMap()
   continued = False
   updated = False
 
@@ -752,10 +750,11 @@ def UpdateMakefilesStage1(info, dirname, fnames):
   """
   if 'Makefile' not in fnames: return
   makefile_name = os.path.join(dirname, 'Makefile')
+  makefile = info.all_makefiles[makefile_name]
 
   def UpdateTargetNamesHelper(infile, outfile):
     """Binds a Makefile object to UpdateTargetNames()."""
-    UpdateTargetNames(infile, outfile, info.all_makefiles[makefile_name])
+    UpdateTargetNames(infile, outfile, makefile.LocalTargetMap())
 
   UpdateFile(makefile_name, UpdateTargetNamesHelper)
 
