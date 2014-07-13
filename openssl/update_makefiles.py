@@ -769,7 +769,7 @@ def UpdateVariableNames(infile, outfile, variables):
 def EmitSuffixTargetRules(infile, outfile, variables, suffix):
   """Emits suffix target rules if needed.
 
-  Different Makefiles set different values for variable used in default make
+  Different Makefiles set different values for variables used in default make
   rules. For those Makefiles, we redefine the default to use Makefile-specific
   variable values.
 
