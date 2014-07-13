@@ -331,7 +331,7 @@ def UpdateMakefilesStage0(unused_arg, dirname, fnames):
 class Makefile(object):
   """Representation of all of the variables and targets in a Makefile.
 
-  Instances of this type are produced by CollectVarsAndTargets().
+  Instances of this type are produced by ParseMakefile().
 
   Attributes:
     makefile: path to the Makefile
@@ -443,7 +443,7 @@ class Makefile(object):
     return variables
 
 
-def CollectVarsAndTargets(makefile_path, makefiles):
+def ParseMakefile(makefile_path, makefiles):
   """Parses a Makefile object from a Makefile.
 
   The result is stored as makefiles[makefile_path].
@@ -517,8 +517,8 @@ def CollectVarsAndTargets(makefile_path, makefiles):
   makefiles[makefile_path] = makefile
 
 
-def CollectVarsAndTargetsRecursive(makefiles, dirname, fnames):
-  """Applies CollectVarsAndTargets() to dirname/Makefile (if it exists).
+def ParseMakefileRecursive(makefiles, dirname, fnames):
+  """Applies ParseMakefile() to dirname/Makefile (if it exists).
 
   Passed to os.path.walk() to process all the Makefiles in the OpenSSL source
   tree.
@@ -529,7 +529,7 @@ def CollectVarsAndTargetsRecursive(makefiles, dirname, fnames):
     fnames: list of contents in the current directory
   """
   if 'Makefile' not in fnames: return
-  CollectVarsAndTargets(os.path.join(dirname, 'Makefile'), makefiles)
+  ParseMakefile(os.path.join(dirname, 'Makefile'), makefiles)
 
 
 def MapVarsAndTargetsToFiles(makefiles, all_vars, all_targets):
@@ -607,13 +607,13 @@ class MakefileInfo(object):
 
   def Init(self):
     """Parses the Makefiles and populates the attribute hashes."""
-    CollectVarsAndTargets('configure.mk', self.top_makefiles)
-    CollectVarsAndTargets('Makefile', self.top_makefiles)
+    ParseMakefile('configure.mk', self.top_makefiles)
+    ParseMakefile('Makefile', self.top_makefiles)
     self.all_makefiles.update(self.top_makefiles)
 
     for d in os.listdir('.'):
       if os.path.isdir(d):
-        os.path.walk(d, CollectVarsAndTargetsRecursive, self.all_makefiles)
+        os.path.walk(d, ParseMakefileRecursive, self.all_makefiles)
 
     MapVarsAndTargetsToFiles(
         self.top_makefiles, self.top_vars, self.top_targets)
