@@ -570,9 +570,6 @@ def ParseMakefile(makefile_path, makefiles):
 
       elif target_match:
         target_name = target_match.group(1)
-        if target_name.endswith('.o'):
-          target_name = None
-          continue
         prerequisites = line[target_match.end():]
         if not Continues(line):
           recipe = []
@@ -1020,6 +1017,7 @@ def UpdateMakefilesStage2(info, dirname, fnames):
 
   UpdateFile(makefile_name, UpdateDirectoryPathsHelper)
 
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--print_common',
@@ -1068,7 +1066,6 @@ if __name__ == '__main__':
       os.path.walk(d, UpdateMakefilesStage2, info)
 
   # TODO:
-  # - Set all includes to -I$(DIR) -I. -Iinclude
   # - Add SRC_* vars to top-level SRC, to include all .d files
   # - Remove lib{crypto,ssl} targets from subdirs
   # - Remove: DIR TOP top subdirs
