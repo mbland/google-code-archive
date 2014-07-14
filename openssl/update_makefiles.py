@@ -442,6 +442,73 @@ class Makefile(object):
       variables[v] = '%s%s' % (v, self.suffix)
     return variables
 
+  def UpdateVariableWithDirectoryName(self, variable):
+    """Returns a new variable definition based on the Makefile's directory.
+
+    Args:
+      variable: the variable to update
+    Returns:
+      a string containing an updated definition for variable where the
+        Makefile's directory has been injected everywhere it needs to be
+      None if no replacement was made
+    """
+    # Try the version without the suffix, too, in case the script is being run
+    # against a fresh working copy.
+    if variable not in self.variables:
+      assert variable.endswith(self.suffix), '%s: unknown variable: %s' % (
+        self.makefile, variable)
+      variable = variable[:-len(self.suffix)]
+    assert variable in self.variables, '%s: unknown variable: %s' % (
+      self.makefile, variable)
+    v = self.variables[variable]
+    if not v.definition:
+      return None
+
+    rel_dirs = []
+    mfdir = os.path.dirname(self.makefile)
+
+    if variable.startswith('INCLUDE') and '-I..' in v.definition:
+      # In {crypto, fips}/Makefile, the INCLUDES_ version is passed to
+      # subdirectories.
+      if mfdir in ('crypto', 'fips') and variable.startswith('INCLUDES'):
+        mfdir = os.path.join(mfdir, 'dummy')
+      includes = v.definition.split()
+
+      for i, s in enumerate(includes):
+        if s.startswith('-I$(TOP'):
+          includes[i] = '-I.'
+        elif s.startswith('-I.'):
+          includes[i] = '-I%s' % os.path.normpath(os.path.join(mfdir, s[2:]))
+
+      return ' '.join(includes)
+
+    # TODO: finish implementing
+    return None
+
+
+  def UpdateTargetWithDirectoryName(self, target):
+    """Returns a new target definition based on the Makefile's directory.
+
+    Args:
+      target: the target to update
+    Returns:
+      a Target object with an updated definition where the Makefile's
+        directory has been injected everywhere it needs to be
+      None if no replacement was made
+    """
+    # Try the version without the suffix, too, in case the script is being run
+    # against a fresh working copy.
+    if target not in self.targets:
+      assert target.endswith(self.suffix), '%s: unknown target: %s' % (
+      self.makefile, target)
+      target = target[:-len(self.suffix)]
+    assert target in self.targets, '%s: unknown target: %s' % (
+      self.makefile, target)
+    t = self.targets[target]
+    mfdir = os.path.dirname(self.makefile)
+    # TODO: implement
+    return None
+
 
 def ParseMakefile(makefile_path, makefiles):
   """Parses a Makefile object from a Makefile.
@@ -873,6 +940,86 @@ def UpdateMakefilesStage1(info, dirname, fnames):
   UpdateFile(makefile_name, UpdateRecursiveMakeArgsHelper)
 
 
+def UpdateDirectoryPaths(infile, outfile, makefile):
+  """Updates every file and directory name to be relative to the top level.
+
+  Args:
+    infile: Makefile to read
+    outfile: Makefile to write
+    makefile: Makefile object containing current variable and target info
+  """
+  skip_lines = 0
+  updated = False
+  for line in infile:
+    if skip_lines:
+      skip_lines -= 1
+      continue
+
+    update = None
+    var_match = VAR_DEFINITION_PATTERN.match(line)
+    target_match = TARGET_PATTERN.match(line)
+    assert not (var_match and target_match), (
+      '%s: %s\n  var: %s\n  target:%s' %
+      (makefile.name, line, var_match.group(1), target_match.group(1)))
+
+    if var_match:
+      v = makefile.UpdateVariableWithDirectoryName(var_match.group(1))
+      if v:
+        update = '%s%s' % (var_match.group(0), v)
+    #elif target_match:
+    #  t = makefile.UpdateTargetWithDirectoryName(target_match.group(1))
+    #  if t:
+    #    update = '%s:%s%s' % (t.name, t.prerequisites, t.recipe)
+
+    if update:
+      print >>outfile, update
+      skip_lines = update.count('\n')
+      updated = True
+    else:
+      print >>outfile, line,
+
+  if updated:
+    print '%s: updated directory paths' % infile.name
+
+
+def EliminateRecursiveMake(infile, outfile):
+  """Removes all recursive make invocations and any now-empty targets.
+
+  Args:
+    info: MakefileInfo object
+    dirname: current directory path
+    fnames: list of contents in the current directory
+  """
+  for line in infile:
+    if True:
+      print '%s: eliminated recursive make' % infile.name
+    print >>outfile, line,
+
+
+def UpdateMakefilesStage2(info, dirname, fnames):
+  """Applies a series of updates to dirname/Makefile (if it exists).
+
+  Passed to os.path.walk() to process all the Makefiles in the OpenSSL source
+  tree. Performs the final changes needed to "flip the switch" over to a
+  nonrecursive make structure.
+
+  Args:
+    info: MakefileInfo object
+    dirname: current directory path
+    fnames: list of contents in the current directory
+  """
+  if 'Makefile' not in fnames: return
+  makefile_name = os.path.join(dirname, 'Makefile')
+  makefile = info.all_makefiles[makefile_name]
+  gnu_makefile_name = os.path.join(dirname, 'GNUmakefile')
+  bsd_makefile_name = os.path.join(dirname, 'BSDmakefile')
+
+  def UpdateDirectoryPathsHelper(infile, outfile):
+    """Binds the local Makefile to UpdateDirectoryPaths()."""
+    UpdateDirectoryPaths(infile, outfile, makefile)
+
+  UpdateFile(makefile_name, UpdateDirectoryPathsHelper)
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--print_common',
@@ -916,5 +1063,13 @@ if __name__ == '__main__':
     if os.path.isdir(d):
       os.path.walk(d, UpdateMakefilesStage1, info)
 
-  # TODO: Strip remaining top-level vars from Makefiles when lower-level
-  # Makefiles are included from the top-level.
+  for d in os.listdir('.'):
+    if os.path.isdir(d):
+      os.path.walk(d, UpdateMakefilesStage2, info)
+
+  # TODO:
+  # - Set all includes to -I$(DIR) -I. -Iinclude
+  # - Add SRC_* vars to top-level SRC, to include all .d files
+  # - Remove lib{crypto,ssl} targets from subdirs
+  # - Remove: DIR TOP top subdirs
+  # - Expand all files that are present in the directory
