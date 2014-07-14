@@ -878,12 +878,17 @@ if __name__ == '__main__':
   parser.add_argument('--print_common',
         help='Print common targets and vars; skip updates',
         action='store_true')
+  parser.add_argument('--makefile',
+        help='Print all targets and vars for a Makefile; skip updates')
   args = parser.parse_args()
 
-  if args.print_common:
+  if args.print_common or args.makefile:
     info = MakefileInfo()
     info.Init()
-    info.PrintCommonVarsAndTargets()
+    if args.print_common:
+      info.PrintCommonVarsAndTargets()
+    elif args.makefile:
+      print info.all_makefiles[args.makefile]
     sys.exit(0)
 
   # Read the top-level configure file, if it exists.
