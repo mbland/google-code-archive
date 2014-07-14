@@ -607,7 +607,7 @@ class MakefileInfo(object):
 
   def Init(self):
     """Parses the Makefiles and populates the attribute hashes."""
-    ParseMakefile('configure.mk', self.top_makefiles)
+    ParseMakefile('configure.mk.org', self.top_makefiles)
     ParseMakefile('Makefile', self.top_makefiles)
     self.all_makefiles.update(self.top_makefiles)
 
