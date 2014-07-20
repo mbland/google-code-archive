@@ -328,6 +328,34 @@ def UpdateMakefilesStage0(unused_arg, dirname, fnames):
   UpdateFile(makefile_name, CatConfigureAndMakefileShared)
 
 
+def NormalizeRelativeDirectory(value, prefix, makefile_path):
+  """Updates value with relative directory paths normalized to the top dir.
+
+  Args:
+    value: string to normalize
+    prefix: the prefix to strip from value before examining the rest of value
+    makefile_path: the Makefile containing value, relative to the top dir
+  Returns:
+    a copy of value with any relative path values normalized relative to the
+      top dir
+  """
+  TOP = '$(TOP'
+  s = value[len(prefix):]
+  makefile_dir = os.path.dirname(makefile_path)
+  if s.startswith(TOP):
+    i = s.find(')', len(TOP))
+    assert i != -1, '%s: incomplete TOP variable: %s' % (makefile_path, value)
+    s = s[i + 1:]
+    if s:
+      assert s[0] == os.path.sep, '%s: malformed TOP variable: %s' % (
+          makefile_path, value)
+      s = s[1:]
+    return '%s%s' % (prefix, os.path.normpath(os.path.join('.', s)))
+  elif s.startswith('.'):
+    return '%s%s' % (prefix, os.path.normpath(os.path.join(makefile_dir, s)))
+  return value
+
+
 class Makefile(object):
   """Representation of all of the variables and targets in a Makefile.
 
@@ -467,20 +495,17 @@ class Makefile(object):
     rel_dirs = []
     mfdir = os.path.dirname(self.makefile)
 
-    if variable.startswith('INCLUDE') and '-I..' in v.definition:
+    if variable.startswith('INCLUDE') and (
+      '-I..' in v.definition or '-I$(TOP' in v.definition):
       # In {crypto, fips}/Makefile, the INCLUDES_ version is passed to
       # subdirectories.
       if mfdir in ('crypto', 'fips') and variable.startswith('INCLUDES'):
         mfdir = os.path.join(mfdir, 'dummy')
-      includes = v.definition.split()
 
-      for i, s in enumerate(includes):
-        if s.startswith('-I$(TOP'):
-          includes[i] = '-I.'
-        elif s.startswith('-I.'):
-          includes[i] = '-I%s' % os.path.normpath(os.path.join(mfdir, s[2:]))
-
-      return ' '.join(includes)
+      for i, s in enumerate(values):
+        values[i] = NormalizeRelativeDirectory(s, '-I',
+            os.path.join(mfdir, mfname))
+      return ''.join(values)
 
     # TODO: finish implementing
     return None

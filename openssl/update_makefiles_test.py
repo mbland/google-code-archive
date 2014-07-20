@@ -145,5 +145,43 @@ class ReplaceMakefileTokenTest(unittest.TestCase):
             '\tfrob FOO=$(FOO) bar', 'FOO', 'FOO_new'))
 
 
+class NormalizeRelativeDirectoryTest(unittest.TestCase):
+
+  def testLeavePathAlone(self):
+    self.assertEqual('foo',
+        update_makefiles.NormalizeRelativeDirectory(
+            'foo', '', 'foo/Makefile'))
+
+  def testReplaceTopPathByItself(self):
+    self.assertEqual('-I.',
+        update_makefiles.NormalizeRelativeDirectory(
+            '-I$(TOP_foo)', '-I', 'foo/Makefile'))
+
+  def testReplaceTopPathWithChild(self):
+    self.assertEqual('-Lbar/baz',
+        update_makefiles.NormalizeRelativeDirectory(
+            '-L$(TOP)/bar/baz', '-L', 'foo/Makefile'))
+
+  def testReplaceSingleDotWithMakefilePath(self):
+    self.assertEqual('foo/bar',
+        update_makefiles.NormalizeRelativeDirectory(
+            './bar', '', 'foo/Makefile'))
+
+  def testReplaceDoubleDotWithParentPath(self):
+    self.assertEqual('foo/baz',
+        update_makefiles.NormalizeRelativeDirectory(
+            '../baz', '', 'foo/bar/Makefile'))
+
+  def testReplaceDoubleDotsWithGrandparentPath(self):
+    self.assertEqual('baz',
+        update_makefiles.NormalizeRelativeDirectory(
+            '../../baz', '', 'foo/bar/Makefile'))
+
+  def testReplaceDoubleDotsWithTopDir(self):
+    self.assertEqual('.',
+        update_makefiles.NormalizeRelativeDirectory(
+            '../..', '', 'foo/bar/Makefile'))
+
+
 if __name__ == '__main__':
   unittest.main()
