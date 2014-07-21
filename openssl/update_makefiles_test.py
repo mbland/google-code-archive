@@ -145,6 +145,38 @@ class ReplaceMakefileTokenTest(unittest.TestCase):
             '\tfrob FOO=$(FOO) bar', 'FOO', 'FOO_new'))
 
 
+class SplitPreservingWhitespaceTest(unittest.TestCase):
+
+  def testEmptyString(self):
+    self.assertEqual([],
+        update_makefiles.SplitPreservingWhitespace(''))
+
+  def testSingleWhitespaceString(self):
+    self.assertEqual([' '],
+        update_makefiles.SplitPreservingWhitespace(' '))
+    self.assertEqual(['\t'],
+        update_makefiles.SplitPreservingWhitespace('\t'))
+    self.assertEqual(['\n'],
+        update_makefiles.SplitPreservingWhitespace('\n'))
+    self.assertEqual(['\r'],
+        update_makefiles.SplitPreservingWhitespace('\r'))
+    self.assertEqual(['\x0b'],
+        update_makefiles.SplitPreservingWhitespace('\x0b'))
+    self.assertEqual(['\x0c'],
+        update_makefiles.SplitPreservingWhitespace('\x0c'))
+
+  def testSingleNonwhitespaceString(self):
+    self.assertEqual(['a'],
+        update_makefiles.SplitPreservingWhitespace('a'))
+
+  def testCombinedString(self):
+    self.assertEqual(['\t', 'foo', ' ', 'bar', '\n'],
+        update_makefiles.SplitPreservingWhitespace('\tfoo bar\n'))
+    self.assertEqual(['\t \n', 'foo', '\t \n', 'bar', '\t \n'],
+        update_makefiles.SplitPreservingWhitespace(
+            '\t \nfoo\t \nbar\t \n'))
+
+
 class NormalizeRelativeDirectoryTest(unittest.TestCase):
 
   def testLeavePathAlone(self):

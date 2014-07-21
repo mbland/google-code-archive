@@ -328,6 +328,39 @@ def UpdateMakefilesStage0(unused_arg, dirname, fnames):
   UpdateFile(makefile_name, CatConfigureAndMakefileShared)
 
 
+def SplitPreservingWhitespace(s):
+  """Splits s into both its whitespace and nonwhitespace components.
+
+  Used instead of split() to ensure that directory name replacement doesn't
+  alter indentation and other whitespace features.
+
+  Args:
+    s: string to split
+  Returns:
+    a list of strings containing all-whitespace and all-nonwhitespace tokens
+      from s
+  """
+  current = []
+  result = []
+  SPACE = ' \t\n\x0b\x0c\r'
+  parse_space = s and s[0] in SPACE
+  for i, c in enumerate(s):
+    if parse_space:
+      if c not in SPACE:
+        result.append(''.join(current))
+        current = []
+        parse_space = False
+    else:
+      if c in SPACE:
+        result.append(''.join(current))
+        current = []
+        parse_space = True
+    current.append(c)
+  if current:
+    result.append(''.join(current))
+  return result
+
+
 def NormalizeRelativeDirectory(value, prefix, makefile_path):
   """Updates value with relative directory paths normalized to the top dir.
 
