@@ -568,75 +568,73 @@ class Makefile(object):
     return None
 
 
-def ParseMakefile(makefile_path, makefiles):
+def ParseMakefile(infile):
   """Parses a Makefile object from a Makefile.
 
-  The result is stored as makefiles[makefile_path].
-
   Args:
-    makefile_path: path to the Makefile to parse
-    makefiles: hash of makefile_path -> Makefile
+    infile: file object containing Makefile contents
+  Returns:
+    a Makefile object
   """
-  makefile = Makefile(makefile_path)
-  with open(makefile_path, 'r') as infile:
-    var_name = None
-    definition = None
-    target_name = None
-    prerequisites = None
-    recipe = None
+  makefile = Makefile(infile.name)
+  var_name = None
+  definition = None
+  target_name = None
+  prerequisites = None
+  recipe = None
 
-    for line in infile:
-      if var_name is not None:
-        definition.append(line)
+  for line in infile:
+    if var_name is not None:
+      definition.append(line)
+      if not Continues(line):
+        makefile.add_var(var_name, ''.join(definition))
+        var_name = None
+        definition_name = None
+      continue
+
+    if target_name is not None:
+      if recipe is None:
+        prerequisites.append(line)
         if not Continues(line):
-          makefile.add_var(var_name, ''.join(definition))
-          var_name = None
-          definition_name = None
+          prerequisites = ''.join(prerequisites)
+          recipe = []
         continue
 
-      if target_name is not None:
-        if recipe is None:
-          prerequisites.append(line)
-          if not Continues(line):
-            prerequisites = ''.join(prerequisites)
-            recipe = []
-          continue
+      if line.startswith('\t'):
+        recipe.append(line)
+        continue
+      makefile.add_target(target_name, prerequisites, ''.join(recipe))
+      target_name = None
+      prerequisites = None
+      recipe = None
 
-        if line.startswith('\t'):
-          recipe.append(line)
-          continue
-        makefile.add_target(target_name, prerequisites, ''.join(recipe))
-        target_name = None
-        prerequisites = None
-        recipe = None
+    var_match = VAR_DEFINITION_PATTERN.match(line)
+    target_match = TARGET_PATTERN.match(line)
+    assert not (var_match and target_match), (
+      '%s: %s\n  var: %s\n  target:%s' %
+      (makefile.name, line, var_match.group(1), target_match.group(1)))
 
-      var_match = VAR_DEFINITION_PATTERN.match(line)
-      target_match = TARGET_PATTERN.match(line)
-      assert not (var_match and target_match), (
-        '%s: %s\n  var: %s\n  target:%s' %
-        (makefile.name, line, var_match.group(1), target_match.group(1)))
+    if var_match:
+      var_name = var_match.group(1)
+      definition = line[var_match.end():]
+      if not Continues(line):
+        makefile.add_var(var_name, definition)
+        var_name = None
+        definition = None
+      else:
+        definition = [definition]
 
-      if var_match:
-        var_name = var_match.group(1)
-        definition = line[var_match.end():]
-        if not Continues(line):
-          makefile.add_var(var_name, definition)
-          var_name = None
-          definition = None
-        else:
-          definition = [definition]
-
-      elif target_match:
-        target_name = target_match.group(1)
-        prerequisites = line[target_match.end():]
-        if not Continues(line):
-          recipe = []
-        else:
-          prerequisites = [prerequisites]
+    elif target_match:
+      target_name = target_match.group(1)
+      prerequisites = line[target_match.end():]
+      if not Continues(line):
+        recipe = []
+      else:
+        prerequisites = [prerequisites]
 
   if recipe is not None:
     makefile.add_target(target_name, prerequisites, ''.join(recipe))
-  makefiles[makefile_path] = makefile
+  return makefile
 
 
 def ParseMakefileRecursive(makefiles, dirname, fnames):
@@ -651,7 +649,9 @@ def ParseMakefileRecursive(makefiles, dirname, fnames):
     fnames: list of contents in the current directory
   """
   if 'Makefile' not in fnames: return
-  ParseMakefile(os.path.join(dirname, 'Makefile'), makefiles)
+  makefile_path = os.path.join(dirname, 'Makefile')
+  with open(makefile_path, 'r') as infile:
+    makefiles[makefile_path] = ParseMakefile(infile)
 
 
 def MapVarsAndTargetsToFiles(makefiles, all_vars, all_targets):
@@ -729,8 +729,9 @@ class MakefileInfo(object):
 
   def Init(self):
     """Parses the Makefiles and populates the attribute hashes."""
-    ParseMakefile('configure.mk.org', self.top_makefiles)
-    ParseMakefile('Makefile', self.top_makefiles)
+    for f in ['configure.mk.org', 'Makefile']:
+      with open(f) as infile:
+        self.top_makefiles[f] = ParseMakefile(infile)
     self.all_makefiles.update(self.top_makefiles)
 
     for d in os.listdir('.'):
