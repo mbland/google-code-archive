@@ -527,6 +527,8 @@ class Makefile(object):
 
     rel_dirs = []
     mfdir = os.path.dirname(self.makefile)
+    mfname = os.path.basename(self.makefile)
+    values = SplitPreservingWhitespace(v.definition)
 
     if variable.startswith('INCLUDE') and (
       '-I..' in v.definition or '-I$(TOP' in v.definition):
@@ -1028,8 +1030,8 @@ def UpdateDirectoryPaths(infile, outfile, makefile):
     #    update = '%s:%s%s' % (t.name, t.prerequisites, t.recipe)
 
     if update:
-      print >>outfile, update
-      skip_lines = update.count('\n')
+      print >>outfile, update,
+      skip_lines = update.count('\n') - 1
       updated = True
     else:
       print >>outfile, line,

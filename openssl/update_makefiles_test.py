@@ -12,7 +12,7 @@ License: Creative Commons Attribution 4.0 International (CC By 4.0)
 
 import update_makefiles
 
-import cStringIO
+import StringIO
 import unittest
 
 
@@ -213,6 +213,45 @@ class NormalizeRelativeDirectoryTest(unittest.TestCase):
     self.assertEqual('.',
         update_makefiles.NormalizeRelativeDirectory(
             '../..', '', 'foo/bar/Makefile'))
+
+
+class UpdateDirectoryPaths(unittest.TestCase):
+
+    def ParseAndUpdate(self, makefile_dir, orig, expected):
+      infile = StringIO.StringIO(orig)
+      infile.name = '%s/Makefile' % makefile_dir
+      self.makefile = update_makefiles.ParseMakefile(infile)
+      infile.seek(0)
+      outfile = StringIO.StringIO()
+      update_makefiles.UpdateDirectoryPaths(infile, outfile, self.makefile)
+      self.assertMultiLineEqual(expected, outfile.getvalue())
+
+    def testReplaceIncludePaths(self):
+      # Using crypto/Makefile because it has normal and special cases.
+      orig = (
+"""INCLUDE_crypto=	-I. -I$(TOP_crypto) -I../include $(ZLIB_INCLUDE)
+INCLUDES_crypto=	-I.. -I../.. -I../modes -I../asn1 -I../evp -I../../include $(ZLIB_INCLUDE)
+""")
+      expected = (
+"""INCLUDE_crypto=	-Icrypto -I. -Iinclude $(ZLIB_INCLUDE)
+INCLUDES_crypto=	-Icrypto -I. -Icrypto/modes -Icrypto/asn1 -Icrypto/evp -Iinclude $(ZLIB_INCLUDE)
+""")
+      self.ParseAndUpdate('crypto', orig, expected)
+
+    def testDoNotEatUnaffectedLines(self):
+      orig = (
+"""INCLUDE_crypto=	-I. -I$(TOP_crypto) -I../include $(ZLIB_INCLUDE)
+# INCLUDES_crypto targets sudbirs!
+INCLUDES_crypto=	-I.. -I../.. -I../modes -I../asn1 -I../evp -I../../include $(ZLIB_INCLUDE)
+RM_crypto=             rm -f
+""")
+      expected = (
+"""INCLUDE_crypto=	-Icrypto -I. -Iinclude $(ZLIB_INCLUDE)
+# INCLUDES_crypto targets sudbirs!
+INCLUDES_crypto=	-Icrypto -I. -Icrypto/modes -Icrypto/asn1 -Icrypto/evp -Iinclude $(ZLIB_INCLUDE)
+RM_crypto=             rm -f
+""")
+      self.ParseAndUpdate('crypto', orig, expected)
 
 
 if __name__ == '__main__':
