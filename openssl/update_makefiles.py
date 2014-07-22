@@ -355,7 +355,6 @@ def SplitPreservingWhitespace(s):
   """
   current = []
   result = []
-  SPACE = ' \t\n\x0b\x0c\r'
   parse_space = s and s[0] in SPACE
   for i, c in enumerate(s):
     if parse_space:
@@ -374,8 +373,45 @@ def SplitPreservingWhitespace(s):
   return result
 
 
+def EliminateTop(s):
+  """Removes or replaces instances of $(TOP* within s.
+
+  Args:
+    s: string to process
+  Returns:
+    a copy of s with all $(TOP* substrings appropriately replaced
+  Raises:
+    UpdateMakefilesException if an error occurs
+  """
+  TOP = '$(TOP'
+  start_pos = s.find(TOP)
+  result = s
+
+  while start_pos != -1:
+    end_pos = result.find(')', start_pos)
+    if end_pos == -1:
+      raise UpdateMakefilesException('Malformed $(TOP) instance: %s' % s)
+
+    end_pos += 1
+    if end_pos != len(result) and result[end_pos] == '/':
+      end_pos += 1
+
+    prefix = result[:start_pos]
+    suffix = result[end_pos:]
+
+    if not suffix or result[end_pos] in SPACE:
+      result = '%s.%s' % (prefix, suffix)
+    else:
+      result = '%s%s' % (prefix, suffix)
+    start_pos = result.find(TOP, start_pos)
+  return result
+
+
 def NormalizeRelativeDirectory(value, prefix, makefile_path):
   """Updates value with relative directory paths normalized to the top dir.
+
+  If value does not start with prefix, the original value will be returned.
+  prefix can be the empty string.
 
   Args:
     value: string to normalize
@@ -385,21 +421,13 @@ def NormalizeRelativeDirectory(value, prefix, makefile_path):
     a copy of value with any relative path values normalized relative to the
       top dir
   """
-  TOP = '$(TOP'
+  if not value.startswith(prefix):
+    return value
   s = value[len(prefix):]
   makefile_dir = os.path.dirname(makefile_path)
-  if s.startswith(TOP):
-    i = s.find(')', len(TOP))
-    assert i != -1, '%s: incomplete TOP variable: %s' % (makefile_path, value)
-    s = s[i + 1:]
-    if s:
-      assert s[0] == os.path.sep, '%s: malformed TOP variable: %s' % (
-          makefile_path, value)
-      s = s[1:]
-    return '%s%s' % (prefix, os.path.normpath(os.path.join('.', s)))
-  elif s.startswith('.'):
+  if s.startswith('.'):
     return '%s%s' % (prefix, os.path.normpath(os.path.join(makefile_dir, s)))
-  return value
+  return '%s%s' % (prefix, EliminateTop(s))
 
 
 class Makefile(object):

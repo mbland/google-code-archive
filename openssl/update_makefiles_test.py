@@ -177,6 +177,32 @@ class SplitPreservingWhitespaceTest(unittest.TestCase):
             '\t \nfoo\t \nbar\t \n'))
 
 
+class EliminateTopTest(unittest.TestCase):
+
+  def testEmptyString(self):
+    self.assertEqual('', update_makefiles.EliminateTop(''))
+
+  def testTopByItselfReturnsDot(self):
+    self.assertEqual('.', update_makefiles.EliminateTop('$(TOP_foo)'))
+    self.assertEqual('.', update_makefiles.EliminateTop('$(TOP_foo)/'))
+
+  def testTopFollowedByChildReturnsChild(self):
+    self.assertEqual('bar', update_makefiles.EliminateTop('$(TOP_foo)/bar'))
+
+  def testTopPrecededByEquals(self):
+    self.assertEqual('TOP=.', update_makefiles.EliminateTop('TOP=$(TOP_foo)'))
+    self.assertEqual('TOP=bar',
+        update_makefiles.EliminateTop('TOP=$(TOP_foo)/bar'))
+
+  def testOnlyReplaceTop(self):
+    self.assertEqual('TOP=. $(NOT_TOP)/foo/bar',
+        update_makefiles.EliminateTop('TOP=$(TOP_foo) $(NOT_TOP)/foo/bar'))
+
+  def testMultipleTopInstances(self):
+    self.assertEqual('TOP=. foo/bar',
+        update_makefiles.EliminateTop('TOP=$(TOP_foo) $(TOP_foo)/foo/bar'))
+
+
 class NormalizeRelativeDirectoryTest(unittest.TestCase):
 
   def testLeavePathAlone(self):
