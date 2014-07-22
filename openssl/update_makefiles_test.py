@@ -243,6 +243,9 @@ class NormalizeRelativeDirectoryTest(unittest.TestCase):
 
 class UpdateDirectoryPaths(unittest.TestCase):
 
+    def setUp(self):
+      self.maxDiff = None
+
     def ParseAndUpdate(self, makefile_dir, orig, expected):
       infile = StringIO.StringIO(orig)
       infile.name = '%s/Makefile' % makefile_dir
@@ -292,6 +295,44 @@ RM_crypto=             rm -f
 """)
       self.ParseAndUpdate('fips', orig, expected)
       self.ParseAndUpdate('fips', expected, expected)
+
+    def testEliminateTopFromBuildCmd(self):
+      orig = (
+"""FIPS_BUILD_CMD=shlib_target=; if [ -n "$(SHARED_LIBS)" ]; then \
+    shlib_target="$(SHLIB_TARGET)"; \
+  fi; \
+  if [ "$(FIPSCANLIB)" = "libfips" ]; then \
+    LIBRARIES="-L$(TOP_test) -lfips"; \
+  elif [ -n "$(FIPSCANLIB)" ]; then \
+    FIPSLD_CC="$(CC)"; CC=$(TOP_test)/fips/fipsld; export CC FIPSLD_CC; \
+    LIBRARIES="$${FIPSLIBDIR:-$(TOP_test)/fips/}fipscanister.o"; \
+  else \
+    LIBRARIES="$(LIBCRYPTO_test)"; \
+  fi; \
+  cat $(TOP_test)/configure.mk $(TOP_test)/Makefile.shared | $(MAKE) -f - \
+    CC="$(CC)" APPNAME=$$target$(EXE_EXT) OBJECTS="$$target.o" \
+    LIBDEPS="$(PEX_LIBS) $$LIBRARIES $(EX_LIBS)" \
+    link_app.$${shlib_target}
+""")
+      expected = (
+"""FIPS_BUILD_CMD=shlib_target=; if [ -n "$(SHARED_LIBS)" ]; then \
+    shlib_target="$(SHLIB_TARGET)"; \
+  fi; \
+  if [ "$(FIPSCANLIB)" = "libfips" ]; then \
+    LIBRARIES="-L. -lfips"; \
+  elif [ -n "$(FIPSCANLIB)" ]; then \
+    FIPSLD_CC="$(CC)"; CC=fips/fipsld; export CC FIPSLD_CC; \
+    LIBRARIES="$${FIPSLIBDIR:-fips/}fipscanister.o"; \
+  else \
+    LIBRARIES="$(LIBCRYPTO_test)"; \
+  fi; \
+  cat configure.mk Makefile.shared | $(MAKE) -f - \
+    CC="$(CC)" APPNAME=$$target$(EXE_EXT) OBJECTS="$$target.o" \
+    LIBDEPS="$(PEX_LIBS) $$LIBRARIES $(EX_LIBS)" \
+    link_app.$${shlib_target}
+""")
+      self.ParseAndUpdate('test', orig, expected)
+      #self.ParseAndUpdate('test', expected, expected)
 
 
 if __name__ == '__main__':

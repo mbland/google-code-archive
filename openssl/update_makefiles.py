@@ -619,8 +619,7 @@ class Makefile(object):
               values[i] = os.path.join(mfdir, s)
           break
 
-    # TODO: handle $(TOP) in BUILD_CMD vars
-    result = ''.join(values)
+    result = EliminateTop(''.join(values))
     return result != v.definition and result or None
 
 
