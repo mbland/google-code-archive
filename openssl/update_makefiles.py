@@ -37,6 +37,12 @@ MAKE_DEPEND_LINE = '# DO NOT DELETE THIS LINE -- make depend depends on it.\n'
 VAR_DEFINITION_PATTERN = re.compile('([^# \t=]+) *=')
 CONFIG_VARS = {}
 TARGET_PATTERN = re.compile('([^#\t=]+):')
+SPACE = ' \t\n\x0b\x0c\r'
+
+
+class UpdateMakefilesException(Exception):
+  """Exception class for errors raised by the update_makefiles module."""
+  pass
 
 
 def AddSrcVarIfNeeded(infile, outfile):
@@ -296,12 +302,19 @@ def UpdateFile(orig_name, update_func):
   Args:
     orig_name: path to the Makefile to update
     update_func: function to transform the Makefile content
+  Raises:
+    UpdateMakefilesException if an error occurs
   """
   updated_name = '%s.updated' % orig_name
-  with open(orig_name, 'r') as orig:
-    with open(updated_name, 'w') as updated:
-      update_func(orig, updated)
-  os.rename(updated_name, orig_name)
+  try:
+    with open(orig_name, 'r') as orig:
+      with open(updated_name, 'w') as updated:
+        update_func(orig, updated)
+    os.rename(updated_name, orig_name)
+
+  except UpdateMakefilesException, e:
+    unused_type, unused_value, traceback = sys.exc_info()
+    raise UpdateMakefilesException, '%s: %s' % (orig_name, e), traceback
 
 
 def UpdateMakefilesStage0(unused_arg, dirname, fnames):
@@ -461,7 +474,8 @@ class Makefile(object):
       AssertionError: if a variable is duplicated in a Makefile, i.e. if name
         is already present in self.variables
     """
-    assert name not in self.variables, '%s: %s' % (self.makefile, name)
+    if name in self.variables:
+      raise UpdateMakefilesException('variable already exists: %s' % name)
     self.variables[name] = Makefile.Variable(name, definition)
 
   def add_target(self, name, prerequisites, recipe):
@@ -482,8 +496,9 @@ class Makefile(object):
     else:
       target = self.targets[name]
       target.prerequisites = '%s %s' % (target.prerequisites, prerequisites)
-      assert not (target.recipe and recipe), (
-          '%s: duplicate recipes for %s' % (self.makefile, target))
+      if target.recipe and recipe:
+        raise UpdateMakefilesException(
+            'duplicate recipes for %s' % target.name)
 
   def LocalTargetMap(self):
     """Returns a hash of target name -> local name for self.common_targets.
@@ -516,11 +531,11 @@ class Makefile(object):
     # Try the version without the suffix, too, in case the script is being run
     # against a fresh working copy.
     if variable not in self.variables:
-      assert variable.endswith(self.suffix), '%s: unknown variable: %s' % (
-        self.makefile, variable)
+      if not variable.endswith(self.suffix):
+        raise UpdateMakefilesException('unknown variable: %s' % variable)
       variable = variable[:-len(self.suffix)]
-    assert variable in self.variables, '%s: unknown variable: %s' % (
-      self.makefile, variable)
+    if not variable in self.variables:
+      raise UpdateMakefilesException('unknown variable: %s' % variable)
     v = self.variables[variable]
     if not v.definition:
       return None
@@ -594,11 +609,11 @@ class Makefile(object):
     # Try the version without the suffix, too, in case the script is being run
     # against a fresh working copy.
     if target not in self.targets:
-      assert target.endswith(self.suffix), '%s: unknown target: %s' % (
-      self.makefile, target)
+      if not target.endswith(self.suffix):
+        raise UpdateMakefilesException('unknown target: %s' % target)
       target = target[:-len(self.suffix)]
-    assert target in self.targets, '%s: unknown target: %s' % (
-      self.makefile, target)
+    if not target in self.targets:
+      raise UpdateMakefilesException('unknown target: %s' % target)
     t = self.targets[target]
     mfdir = os.path.dirname(self.makefile)
     # TODO: implement
@@ -647,9 +662,10 @@ def ParseMakefile(infile):
 
     var_match = VAR_DEFINITION_PATTERN.match(line)
     target_match = TARGET_PATTERN.match(line)
-    assert not (var_match and target_match), (
-      '%s: %s\n  var: %s\n  target:%s' %
-      (makefile.name, line, var_match.group(1), target_match.group(1)))
+    if var_match and target_match:
+      raise UpdateMakefilesException(
+      '%s:%s\n  var: %s\n  target:%s' %
+      (infile.name, line, var_match.group(1), target_match.group(1)))
 
     if var_match:
       var_name = var_match.group(1)
@@ -877,9 +893,10 @@ def UpdateTargetNames(infile, outfile, targets):
     else:
       var_match = VAR_DEFINITION_PATTERN.match(line)
       target_match = TARGET_PATTERN.match(line)
-      assert not (var_match and target_match), (
-        '%s: %s\n  var: %s\n  target:%s' %
-        (makefile.name, line, var_match.group(1), target_match.group(1)))
+      if var_match and target_match:
+        raise UpdateMakefilesException(
+            '%s: %s\n  var: %s\n  target:%s' %
+            (infile.name, line, var_match.group(1), target_match.group(1)))
 
     if target_match:
       target_name = target_match.group(1)
@@ -1051,9 +1068,9 @@ def UpdateDirectoryPaths(infile, outfile, makefile):
     update = None
     var_match = VAR_DEFINITION_PATTERN.match(line)
     target_match = TARGET_PATTERN.match(line)
-    assert not (var_match and target_match), (
-      '%s: %s\n  var: %s\n  target:%s' %
-      (makefile.name, line, var_match.group(1), target_match.group(1)))
+    if var_match and target_match:
+      raise UpdateMakefilesException('%s: %s\n  var: %s\n  target:%s' %
+          (infile.name, line, var_match.group(1), target_match.group(1)))
 
     if var_match:
       v = makefile.UpdateVariableWithDirectoryName(var_match.group(1))
