@@ -332,7 +332,7 @@ RM_crypto=             rm -f
     link_app.$${shlib_target}
 """)
       self.ParseAndUpdate('test', orig, expected)
-      #self.ParseAndUpdate('test', expected, expected)
+      self.ParseAndUpdate('test', expected, expected)
 
 
 if __name__ == '__main__':

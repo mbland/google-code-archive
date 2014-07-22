@@ -568,10 +568,8 @@ class Makefile(object):
     if not v.definition:
       return None
 
-    rel_dirs = []
     mfdir = os.path.dirname(self.makefile)
     mfdir_slash = '%s%s' % (mfdir, os.path.sep)
-    mfname = os.path.basename(self.makefile)
     values = SplitPreservingWhitespace(v.definition)
 
     if variable.startswith('INCLUDE') and (
@@ -583,15 +581,14 @@ class Makefile(object):
 
       for i, s in enumerate(values):
         values[i] = NormalizeRelativeDirectory(s, '-I',
-            os.path.join(mfdir, mfname))
+            os.path.join(mfdir, os.path.basename(self.makefile)))
 
     elif (variable.startswith('LIB') or variable.startswith('DLIB')) and (
       '..' in v.definition or '$(TOP' in v.definition):
 
       for i, s in enumerate(values):
         prefix = s.startswith('-L') and '-L' or ''
-        values[i] = NormalizeRelativeDirectory(s, prefix,
-            os.path.join(mfdir, mfname))
+        values[i] = NormalizeRelativeDirectory(s, prefix, self.makefile)
 
     elif mfdir == 'test' and variable.startswith('FIPS_'):
       for i, s in enumerate(values):
@@ -1103,10 +1100,10 @@ def UpdateDirectoryPaths(infile, outfile, makefile):
       v = makefile.UpdateVariableWithDirectoryName(var_match.group(1))
       if v:
         update = '%s%s' % (var_match.group(0), v)
-    #elif target_match:
-    #  t = makefile.UpdateTargetWithDirectoryName(target_match.group(1))
-    #  if t:
-    #    update = '%s:%s%s' % (t.name, t.prerequisites, t.recipe)
+    elif target_match:
+      t = makefile.UpdateTargetWithDirectoryName(target_match.group(1))
+      if t:
+        update = '%s:%s%s' % (t.name, t.prerequisites, t.recipe)
 
     if update:
       print >>outfile, update,
