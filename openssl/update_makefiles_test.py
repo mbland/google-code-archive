@@ -237,6 +237,7 @@ INCLUDES_crypto=	-I.. -I../.. -I../modes -I../asn1 -I../evp -I../../include $(ZL
 INCLUDES_crypto=	-Icrypto -I. -Icrypto/modes -Icrypto/asn1 -Icrypto/evp -Iinclude $(ZLIB_INCLUDE)
 """)
       self.ParseAndUpdate('crypto', orig, expected)
+      self.ParseAndUpdate('crypto', expected, expected)
 
     def testDoNotEatUnaffectedLines(self):
       orig = (
@@ -252,6 +253,19 @@ INCLUDES_crypto=	-Icrypto -I. -Icrypto/modes -Icrypto/asn1 -Icrypto/evp -Iinclud
 RM_crypto=             rm -f
 """)
       self.ParseAndUpdate('crypto', orig, expected)
+      self.ParseAndUpdate('crypto', expected, expected)
+
+    def testFipsObjListProcessingIsIdempotent(self):
+      orig = (
+"""FIPS_OBJ_LISTS=sha/lib hmac/lib rand/lib des/lib aes/lib dsa/lib rsa/lib \
+            dh/lib utl/lib ecdsa/lib ecdh/lib cmac/lib
+""")
+      expected = (
+"""FIPS_OBJ_LISTS=fips/sha/lib fips/hmac/lib fips/rand/lib fips/des/lib fips/aes/lib fips/dsa/lib fips/rsa/lib \
+            fips/dh/lib fips/utl/lib fips/ecdsa/lib fips/ecdh/lib fips/cmac/lib
+""")
+      self.ParseAndUpdate('fips', orig, expected)
+      self.ParseAndUpdate('fips', expected, expected)
 
 
 if __name__ == '__main__':

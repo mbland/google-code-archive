@@ -527,6 +527,7 @@ class Makefile(object):
 
     rel_dirs = []
     mfdir = os.path.dirname(self.makefile)
+    mfdir_slash = '%s%s' % (mfdir, os.path.sep)
     mfname = os.path.basename(self.makefile)
     values = SplitPreservingWhitespace(v.definition)
 
@@ -540,10 +541,44 @@ class Makefile(object):
       for i, s in enumerate(values):
         values[i] = NormalizeRelativeDirectory(s, '-I',
             os.path.join(mfdir, mfname))
-      return ''.join(values)
 
-    # TODO: finish implementing
-    return None
+    elif (variable.startswith('LIB') or variable.startswith('DLIB')) and (
+      '..' in v.definition or '$(TOP' in v.definition):
+
+      for i, s in enumerate(values):
+        prefix = s.startswith('-L') and '-L' or ''
+        values[i] = NormalizeRelativeDirectory(s, prefix,
+            os.path.join(mfdir, mfname))
+
+    elif mfdir == 'test' and variable.startswith('FIPS_'):
+      for i, s in enumerate(values):
+        if (not (s.isspace() or s.startswith(mfdir_slash)) and
+            s.startswith('fips_')):
+          values[i] = os.path.join(mfdir, s)
+
+    else:
+      var_substrings = [
+        'SRC',
+        'OBJ',
+        'EXE',
+        'PROGRAM',
+        'SCRIPTS',
+        'GENERAL',
+        'TEST',
+        'APPS',
+      ]
+
+      for vs in var_substrings:
+        if vs in variable:
+          for i, s in enumerate(values):
+            if not (s.isspace() or s.startswith('$') or
+                    s.startswith(mfdir_slash) or s == ('\\')):
+              values[i] = os.path.join(mfdir, s)
+          break
+
+    # TODO: handle $(TOP) in BUILD_CMD vars
+    result = ''.join(values)
+    return result != v.definition and result or None
 
 
   def UpdateTargetWithDirectoryName(self, target):
