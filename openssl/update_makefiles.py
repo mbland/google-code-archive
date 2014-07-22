@@ -172,9 +172,11 @@ def AddTopToFilesTarget(infile, outfile):
   """
   FILES_SCRIPT = 'util/files.pl'
   TOP_ARG = '%s %s' % (FILES_SCRIPT, 'TOP=$(TOP')
+  LAST_STAGE_TOP_ARG = '%s %s' % (FILES_SCRIPT, 'TOP=. ')
   UPDATE = '%s)' % TOP_ARG
   for line in infile:
-    if line.find(FILES_SCRIPT) != -1 and line.find(TOP_ARG) == -1:
+    if line.find(FILES_SCRIPT) != -1 and (
+      line.find(TOP_ARG) == -1 and line.find(LAST_STAGE_TOP_ARG) == -1):
       print '%s: Adding TOP as argument to files.pl' % infile.name
       line = line.replace(FILES_SCRIPT, UPDATE)
     print >>outfile, line,
