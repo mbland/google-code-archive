@@ -826,14 +826,26 @@ class MakefileInfo(object):
       m.top_targets.update([t for t in m.targets if t in self.top_targets])
       m.top_vars.update([v for v in m.variables if v in self.top_vars])
 
+    # The 'lib' target in fips and these subdirs target actually produces a
+    # file named 'lib'.
+    FIPS_LIB_EXCEPTIONS = set([
+        'aes', 'cmac', 'des', 'dh', 'dsa', 'ecdh', 'ecdsa', 'hmac', 'rand',
+        'rsa', 'sha', 'utl'])
+
     for v, files in self.all_vars.iteritems():
       if len(files) != 1:
         for f in files:
           self.all_makefiles[f[0]].common_vars.add(v)
+
     for t, files in self.all_targets.iteritems():
       if len(files) != 1:
         for f in files:
-          self.all_makefiles[f[0]].common_targets.add(t)
+          mf = self.all_makefiles[f[0]]
+          mfdir = os.path.dirname(mf.makefile)
+          if not (t == 'lib' and (mfdir == 'fips' or
+              (os.path.dirname(mfdir) == 'fips' and
+              os.path.basename(mfdir) in FIPS_LIB_EXCEPTIONS))):
+            mf.common_targets.add(t)
 
   def PrintCommonVarsAndTargets(self):
     """Prints top-level vars and targets, then those in multiple files.
