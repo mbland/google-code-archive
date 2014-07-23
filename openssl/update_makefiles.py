@@ -1085,7 +1085,8 @@ def UpdateDirectoryPaths(infile, outfile, makefile):
     makefile: Makefile object containing current variable and target info
   """
   skip_lines = 0
-  updated = False
+  updated_vars = False
+  updated_targets = False
   for line in infile:
     if skip_lines:
       skip_lines -= 1
@@ -1102,10 +1103,13 @@ def UpdateDirectoryPaths(infile, outfile, makefile):
       v = makefile.UpdateVariableWithDirectoryName(var_match.group(1))
       if v:
         update = '%s%s' % (var_match.group(0), v)
+        updated_vars = updated_vars or bool(update)
+
     elif target_match:
       t = makefile.UpdateTargetWithDirectoryName(target_match.group(1))
       if t:
         update = '%s:%s%s' % (t.name, t.prerequisites, t.recipe)
+        updated_targets = updated_targets or bool(update)
 
     if update:
       print >>outfile, update,
@@ -1114,8 +1118,10 @@ def UpdateDirectoryPaths(infile, outfile, makefile):
     else:
       print >>outfile, line,
 
-  if updated:
-    print '%s: updated directory paths' % infile.name
+  if updated_vars:
+    print '%s: updated variable directory paths' % infile.name
+  if updated_targets:
+    print '%s: updated target directory paths' % infile.name
 
 
 def EliminateRecursiveMake(infile, outfile):
