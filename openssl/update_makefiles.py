@@ -604,6 +604,7 @@ class Makefile(object):
         'OBJ',
         'EXE',
         'PROGRAM',
+        'HEADER',
         'SCRIPTS',
         'GENERAL',
         'TEST',
