@@ -1162,17 +1162,19 @@ if __name__ == '__main__':
   parser.add_argument('--print_common',
         help='Print common targets and vars; skip updates',
         action='store_true')
-  parser.add_argument('--makefile',
+  parser.add_argument('--print_makefile',
         help='Print all targets and vars for a Makefile; skip updates')
+  parser.add_argument('--makefile',
+        help='Process only the specified Makefile')
   args = parser.parse_args()
 
-  if args.print_common or args.makefile:
+  if args.print_common or args.print_makefile:
     info = MakefileInfo()
     info.Init()
     if args.print_common:
       info.PrintCommonVarsAndTargets()
-    elif args.makefile:
-      print info.all_makefiles[args.makefile]
+    elif args.print_makefile:
+      print info.all_makefiles[args.print_makefile]
     sys.exit(0)
 
   # Read the top-level configure file, if it exists.
@@ -1182,6 +1184,16 @@ if __name__ == '__main__':
     CONFIG_VARS['TOP'] = 1
     # MAKEDEPEND is on its way out, too.
     CONFIG_VARS['MAKEDEPEND'] = 1
+
+  if args.makefile:
+    mfdir = os.path.dirname(args.makefile)
+    files = ['Makefile']
+    UpdateMakefilesStage0(None, mfdir, files)
+    info = MakefileInfo()
+    info.Init()
+    UpdateMakefilesStage1(info, mfdir, files)
+    UpdateMakefilesStage2(info, mfdir, files)
+    sys.exit(0)
 
   for d in os.listdir('.'):
     if os.path.isdir(d):
