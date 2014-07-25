@@ -39,6 +39,12 @@ CONFIG_VARS = {}
 TARGET_PATTERN = re.compile('([^#\t=]+):')
 SPACE = ' \t\n\x0b\x0c\r'
 
+DEFAULT_RULE_TARGETS = set([
+    ".c.o",
+    ".s.o",
+    ".S.s",
+    ])
+
 
 class UpdateMakefilesException(Exception):
   """Exception class for errors raised by the update_makefiles module."""
@@ -641,10 +647,66 @@ class Makefile(object):
       target = target[:-len(self.suffix)]
     if not target in self.targets:
       raise UpdateMakefilesException('unknown target: %s' % target)
+
     t = self.targets[target]
+
+    if t.name in DEFAULT_RULE_TARGETS:
+      # Punt for now
+      # TODO: figure out strategy; will have to be {GNU,BSD}-specific
+      return None
+    elif t.name in self.common_targets:
+      # These should depend on the Makefile-local version, e.g.:
+      # all: all_foo
+      if t.recipe:
+        raise UpdateMakefilesException(
+            'common target has recipe: %s' % t.name)
+      local_target = '%s%s' % (t.name, self.suffix)
+      actual_target = t.prerequisites.strip()
+      if actual_target != local_target:
+        raise UpdateMakefilesException('common target depends on more than '
+            'local target (expected "%s", actual "%s"): %s' % (
+            local_target, actual_target, t.name))
+      return None
+
+    result = Makefile.Target(t.name, '', '')
+
     mfdir = os.path.dirname(self.makefile)
-    # TODO: implement
-    return None
+    mfdir_slash = '%s%s' % (mfdir, os.path.sep)
+    prereqs = SplitPreservingWhitespace(t.prerequisites)
+    recipe = SplitPreservingWhitespace(t.recipe)
+
+    def UpdateTargetToken(s):
+      """Adds the directory prefix to a target token as needed."""
+      mfdir_parent = os.path.dirname(mfdir)
+      s_parent = os.path.dirname(s)
+      TOP_REL_PATH = '.%s' % os.path.sep
+      if (s.isspace() or s.startswith(mfdir_slash) or
+          (mfdir_parent and s.startswith(mfdir_parent)) or
+          (s_parent and not os.path.exists(os.path.join(mfdir, s_parent))) or
+          s.endswith(self.suffix) or s.startswith('$') or
+          s.startswith(TOP_REL_PATH)):
+        return s
+      if s in self.common_targets:
+        # This should only apply to prerequisites and recipes, since we've
+        # filtered out common targets by name just above.
+        return '%s%s' % (s, self.suffix)
+      result = os.path.normpath(os.path.join(mfdir, s))
+      if not result.startswith(mfdir) and os.path.sep not in result:
+        result = '%s%s' % (TOP_REL_PATH, result)
+      return result
+
+    result.name = EliminateTop(UpdateTargetToken(t.name))
+
+    # At this stage in processing, we want to keep $(TOP), since there's no
+    # other way of knowing that a particular token has been rooted at the top
+    # level.
+    result.prerequisites = ''.join([UpdateTargetToken(s) for s in prereqs])
+    result.recipe = t.recipe
+    #result.recipe = EliminateTop(''.join(
+    #    [UpdateTargetToken(s) for s in recipe]))
+    return (t.name != result.name or
+            t.prerequisites != result.prerequisites or
+            t.recipe != result.recipe) and result or None
 
 
 def ParseMakefile(infile):
