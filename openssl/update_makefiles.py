@@ -1151,6 +1151,64 @@ def UpdateMakefilesStage1(info, dirname, fnames):
   UpdateFile(makefile_name, UpdateRecursiveMakeArgsHelper)
 
 
+def EliminateVarsAndTargets(infile, outfile, makefile):
+  """Deletes specific variables and targets from a Makefile.
+
+  Args:
+    infile: Makefile to read
+    outfile: Makefile to write
+    makefile: Makefile object containing current variable and target info
+  """
+  vars_to_delete = set([
+        'TOP',
+        'DIR',
+      ])
+  targets_to_delete = set([
+        'top',
+      ])
+
+  for s in [vars_to_delete, targets_to_delete]:
+    s.update(set(['%s%s' % (i, makefile.suffix) for i in s]))
+
+  skip_lines = 0
+  deleted_vars = False
+  deleted_targets = False
+  for line in infile:
+    if skip_lines:
+      skip_lines -= 1
+      continue
+
+    update = None
+    var_match = VAR_DEFINITION_PATTERN.match(line)
+    target_match = TARGET_PATTERN.match(line)
+    if var_match and target_match:
+      raise UpdateMakefilesException('%s: %s\n  var: %s\n  target:%s' %
+          (infile.name, line, var_match.group(1), target_match.group(1)))
+
+    if var_match and var_match.group(1) in vars_to_delete:
+      var_name = var_match.group(1)
+      if var_name in makefile.variables:
+        v = makefile.variables[var_name]
+        skip_lines = v.definition.count('\n') - 1
+      else:
+        # This is a {BSD,GNU}makefile with one-line-only var definitions.
+        pass
+      deleted_vars = True
+
+    elif target_match and target_match.group(1) in targets_to_delete:
+      t = makefile.targets[target_match.group(1)]
+      skip_lines = t.prerequisites.count('\n') + t.recipe.count('\n') - 1
+      deleted_targets = True
+
+    else:
+      print >>outfile, line,
+
+  if deleted_vars:
+    print '%s: deleted variables' % infile.name
+  if deleted_targets:
+    print '%s: deleted targets' % infile.name
+
+
 def UpdateDirectoryPaths(infile, outfile, makefile):
   """Updates every file and directory name to be relative to the top level.
 
@@ -1230,6 +1288,14 @@ def UpdateMakefilesStage2(info, dirname, fnames):
   makefile = info.all_makefiles[makefile_name]
   gnu_makefile_name = os.path.join(dirname, 'GNUmakefile')
   bsd_makefile_name = os.path.join(dirname, 'BSDmakefile')
+
+  def EliminateVarsAndTargetsHelper(infile, outfile):
+    """Binds the local Makefile to EliminateVarsAndTargets()."""
+    EliminateVarsAndTargets(infile, outfile, makefile)
+
+  UpdateFile(makefile_name, EliminateVarsAndTargetsHelper)
+  UpdateFile(gnu_makefile_name, EliminateVarsAndTargetsHelper)
+  UpdateFile(bsd_makefile_name, EliminateVarsAndTargetsHelper)
 
   def UpdateDirectoryPathsHelper(infile, outfile):
     """Binds the local Makefile to UpdateDirectoryPaths()."""
