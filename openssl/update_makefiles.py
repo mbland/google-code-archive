@@ -701,7 +701,7 @@ class Makefile(object):
     # other way of knowing that a particular token has been rooted at the top
     # level.
     result.prerequisites = ''.join([UpdateTargetToken(s) for s in prereqs])
-    result.recipe = t.recipe
+    result.recipe = EliminateTop(t.recipe)
     #result.recipe = EliminateTop(''.join(
     #    [UpdateTargetToken(s) for s in recipe]))
     return (t.name != result.name or
