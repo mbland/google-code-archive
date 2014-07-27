@@ -243,7 +243,10 @@ def RemoveOldMakeDependOutput(infile, outfile):
     outfile: Makefile to write
   """
   for line in infile:
-    if line == MAKE_DEPEND_LINE:
+    if line.startswith('\t$(PERL) -pe \'if (/^# DO NOT DELETE THIS LINE/)'):
+      print '%s: Removing "make depend" from dclean recipe' % infile.name
+      continue
+    elif line == MAKE_DEPEND_LINE:
       print '%s: Removing "make depend" output' % infile.name
       return
     print >>outfile, line,
