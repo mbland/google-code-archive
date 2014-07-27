@@ -1261,6 +1261,28 @@ def UpdateDirectoryPaths(infile, outfile, makefile):
     print '%s: updated target directory paths' % infile.name
 
 
+def UpdateIncludeDirectives(infile, outfile):
+  """Updates the include directives in {GNU,BSD}makefiles.
+
+  Args:
+    infile: Makefile to read
+    outfile: Makefile to write
+    makefile: Makefile object containing current variable and target info
+  """
+  if os.path.basename(infile.name) not in ['GNUmakefile', 'BSDmakefile']:
+    raise UpdateMakefilesException, 'not a {GNU,BSD}makefile: %s' % (
+        infile.name)
+  for line in infile:
+    if 'configure.mk' in line:
+      print '%s: removed configure.mk include directive' % infile.name
+    elif 'Makefile' in line and not os.path.sep in line:
+      mfpath = os.path.join(os.path.dirname(infile.name), 'Makefile')
+      print >>outfile, line.replace('Makefile', mfpath),
+      print '%s: updated Makefile include directive' % infile.name
+    else:
+      print >>outfile, line,
+
+
 def UpdateMakefilesStage2(info, dirname, fnames):
   """Applies a series of updates to dirname/Makefile (if it exists).
 
@@ -1286,6 +1308,8 @@ def UpdateMakefilesStage2(info, dirname, fnames):
   UpdateFile(makefile_name, EliminateVarsAndTargetsHelper)
   UpdateFile(gnu_makefile_name, EliminateVarsAndTargetsHelper)
   UpdateFile(bsd_makefile_name, EliminateVarsAndTargetsHelper)
+  UpdateFile(gnu_makefile_name, UpdateIncludeDirectives)
+  UpdateFile(bsd_makefile_name, UpdateIncludeDirectives)
 
   def UpdateDirectoryPathsHelper(infile, outfile):
     """Binds the local Makefile to UpdateDirectoryPaths()."""
