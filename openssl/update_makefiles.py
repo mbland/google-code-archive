@@ -1171,8 +1171,8 @@ def EliminateVarsAndTargets(infile, outfile, makefile):
     s.update(set(['%s%s' % (i, makefile.suffix) for i in s]))
 
   skip_lines = 0
-  deleted_vars = False
-  deleted_targets = False
+  deleted_vars = []
+  deleted_targets = []
   for line in infile:
     if skip_lines:
       skip_lines -= 1
@@ -1193,20 +1193,21 @@ def EliminateVarsAndTargets(infile, outfile, makefile):
       else:
         # This is a {BSD,GNU}makefile with one-line-only var definitions.
         pass
-      deleted_vars = True
+      deleted_vars.append(var_name)
 
     elif target_match and target_match.group(1) in targets_to_delete:
       t = makefile.targets[target_match.group(1)]
       skip_lines = t.prerequisites.count('\n') + t.recipe.count('\n') - 1
-      deleted_targets = True
+      deleted_targets.append(t.name)
 
     else:
       print >>outfile, line,
 
   if deleted_vars:
-    print '%s: deleted variables' % infile.name
+    print '%s: deleted variables: %s' % (infile.name, ', '.join(deleted_vars))
   if deleted_targets:
-    print '%s: deleted targets' % infile.name
+    print '%s: deleted targets: %s' % (
+        infile.name, ', '.join(deleted_targets))
 
 
 def UpdateDirectoryPaths(infile, outfile, makefile):
