@@ -817,7 +817,14 @@ def ParseMakefile(infile):
     elif target_match:
       target_name = target_match.group(1)
       prerequisites = line[target_match.end():]
-      if not Continues(line):
+      # Some recipes begin on the same line as the prerequisites. In OpenSSL,
+      # this only happens on the same line as the target name.
+      recipe_start = prerequisites.find(';')
+      if recipe_start != -1:
+        recipe_start += 1
+        recipe = [prerequisites[recipe_start:]]
+        prerequisites = prerequisites[:recipe_start]
+      elif not Continues(line):
         recipe = []
       else:
         prerequisites = [prerequisites]
@@ -1246,6 +1253,7 @@ def EliminateVarsAndTargets(infile, outfile, makefile):
     elif target_match and target_match.group(1) in targets_to_delete:
       t = makefile.targets[target_match.group(1)]
       skip_lines = t.prerequisites.count('\n') + t.recipe.count('\n') - 1
+      assert skip_lines >= 0, '%s: %s' % (infile.name, t)
       deleted_targets.append(t.name)
 
     else:
@@ -1296,6 +1304,7 @@ def UpdateDirectoryPaths(infile, outfile, makefile):
     if update:
       print >>outfile, update,
       skip_lines = update.count('\n') - 1
+      assert skip_lines >= 0, '%s: %s' % (infile.name, update)
       updated = True
     else:
       print >>outfile, line,
