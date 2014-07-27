@@ -493,6 +493,8 @@ class Makefile(object):
     self.common_targets = set()
     self.top_vars = set()
     self.top_targets = set()
+    # Used by IsUpdatableRecipeToken()
+    self._updatable_recipe_tokens = set()
 
   def __str__(self):
     variable_names = self.variables.keys()
@@ -630,6 +632,49 @@ class Makefile(object):
 
     result = EliminateTop(''.join(values))
     return result != v.definition and result or None
+
+
+  def IsUpdatableRecipeToken(self, token):
+    """Returns true if a recipe token should be prefixed with the directory.
+
+    Used to determine which parts of a target recipe should be updated by
+    UpdateTargetWithDirectoryName().
+
+    Args:
+      token: token to examine
+    Returns:
+      True: if token should be prefixed with the directory path
+      False: otherwise
+    """
+    # No need to compute this every time; cache the results.
+    if not self._updatable_recipe_tokens:
+      TOKEN_PATTERN = re.compile('[a-zA-Z]')
+      MFDIR = os.path.dirname(self.makefile)
+      TOKENS_TO_EXCLUDE = set(['rm', 'cc'])
+
+      def IsTokenMatch(token):
+        """Returns True if the token should be updated."""
+        return (os.path.dirname(token) != MFDIR and
+                TOKEN_PATTERN.match(token) and
+                token not in TOKENS_TO_EXCLUDE)
+
+      def StripToken(token):
+        """Strips any known extraneous characters from a token."""
+        return token.rstrip(';')
+
+      for name, target in self.targets.iteritems():
+        if IsTokenMatch(name):
+          self._updatable_recipe_tokens.update([StripToken(name)])
+        prereqs = target.prerequisites.split()
+        self._updatable_recipe_tokens.update(
+            [StripToken(i) for i in prereqs if IsTokenMatch(i)])
+
+      for name, variable in self.variables.iteritems():
+        def_items = variable.definition.split()
+        self._updatable_recipe_tokens.update(
+            [StripToken(i) for i in def_items if IsTokenMatch(i)])
+
+    return token in self._updatable_recipe_tokens
 
 
   def UpdateTargetWithDirectoryName(self, target):
