@@ -1258,20 +1258,6 @@ def UpdateDirectoryPaths(infile, outfile, makefile):
     print '%s: updated target directory paths' % infile.name
 
 
-def EliminateRecursiveMake(infile, outfile):
-  """Removes all recursive make invocations and any now-empty targets.
-
-  Args:
-    info: MakefileInfo object
-    dirname: current directory path
-    fnames: list of contents in the current directory
-  """
-  for line in infile:
-    if True:
-      print '%s: eliminated recursive make' % infile.name
-    print >>outfile, line,
-
-
 def UpdateMakefilesStage2(info, dirname, fnames):
   """Applies a series of updates to dirname/Makefile (if it exists).
 
