@@ -469,6 +469,9 @@ class Makefile(object):
       self.name = name
       self.definition = definition
 
+    def __str__(self):
+      return '%s=%s' % (self.name, self.definition)
+
   class Target(object):
     """Representation of a Makefile target.
 
@@ -482,6 +485,9 @@ class Makefile(object):
       self.name = name
       self.prerequisites = prerequisites
       self.recipe = recipe
+
+    def __str__(self):
+      return '%s:%s%s' % (self.name, self.prerequisites, self.recipe)
 
   def __init__(self, makefile):
     self.makefile = makefile
@@ -504,9 +510,11 @@ class Makefile(object):
     variable_names.sort()
     target_names = self.targets.keys()
     target_names.sort()
-    return '%s:\n  vars:\n    %s\n  targets:\n    %s' % (
-        self.makefile,
-        '\n    '.join(variable_names), '\n    '.join(target_names))
+    s = ['FILE: %s' % self.makefile, 'VARS:']
+    s.extend(['  %s' % self.variables[i] for i in variable_names])
+    s.append('TARGETS:')
+    s.extend(['  %s' % self.targets[i] for i in target_names])
+    return '\n'.join(s)
 
   def add_var(self, name, definition):
     """Adds a new Variable to the Makefile.
