@@ -37,6 +37,7 @@ MAKE_DEPEND_LINE = '# DO NOT DELETE THIS LINE -- make depend depends on it.\n'
 VAR_DEFINITION_PATTERN = re.compile('([^# \t=]+) *=')
 CONFIG_VARS = {}
 TARGET_PATTERN = re.compile('([^#\t=]+):')
+MULTILINE_TARGET_PATTERN = re.compile('([\t ]*[^#\t=]+):')
 SPACE = ' \t\n\x0b\x0c\r'
 
 DEFAULT_RULE_TARGETS = set([
@@ -542,6 +543,8 @@ class Makefile(object):
       if target.recipe and recipe:
         raise UpdateMakefilesException(
             'duplicate recipes for %s' % target.name)
+    # TODO(mbland): We need to handle multiple targets defined on the same
+    # line.
 
   def LocalTargetMap(self):
     """Returns a hash of target name -> local name for self.common_targets.
@@ -788,6 +791,7 @@ def ParseMakefile(infile):
   makefile = Makefile(infile.name)
   var_name = None
   definition = None
+  multiline_target_name = []
   target_name = None
   prerequisites = None
   recipe = None
@@ -819,6 +823,10 @@ def ParseMakefile(infile):
 
     var_match = VAR_DEFINITION_PATTERN.match(line)
     target_match = TARGET_PATTERN.match(line)
+
+    if multiline_target_name:
+      target_match = MULTILINE_TARGET_PATTERN.match(line)
+
     if var_match and target_match:
       raise UpdateMakefilesException(
       '%s:%s\n  var: %s\n  target:%s' %
@@ -835,7 +843,9 @@ def ParseMakefile(infile):
         definition = [definition]
 
     elif target_match:
-      target_name = target_match.group(1)
+      target_name = '%s%s' % (
+          ''.join(multiline_target_name), target_match.group(1))
+      multiline_target_name = []
       prerequisites = line[target_match.end():]
       # Some recipes begin on the same line as the prerequisites. In OpenSSL,
       # this only happens on the same line as the target name.
@@ -848,6 +858,9 @@ def ParseMakefile(infile):
         recipe = []
       else:
         prerequisites = [prerequisites]
+
+    elif Continues(line) and not line.startswith('#'):
+      multiline_target_name.append(line)
 
   if recipe is not None:
     makefile.add_target(target_name, prerequisites, ''.join(recipe))
