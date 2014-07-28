@@ -675,7 +675,12 @@ class Makefile(object):
         self._updatable_recipe_tokens.update(
             [StripToken(i) for i in def_items if IsTokenMatch(i)])
 
-    return token in self._updatable_recipe_tokens
+    # Some rules don't declare the objects they need as dependencies; they
+    # compile the objects themselves.
+    SRC_OBJ_PATTERN = re.compile('\.[csSo]$')
+    return (token in self._updatable_recipe_tokens or
+            os.path.basename(token) in self._updatable_recipe_tokens or
+            (SRC_OBJ_PATTERN.search(token) and not os.path.dirname(token)))
 
 
   def UpdateTargetWithDirectoryName(self, target):
