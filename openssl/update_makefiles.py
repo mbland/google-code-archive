@@ -484,8 +484,9 @@ class Makefile(object):
 
   def __init__(self, makefile):
     self.makefile = makefile
-    mfdir = os.path.dirname(makefile)
-    self.suffix = mfdir and '_%s' % mfdir.replace(os.path.sep, '_') or ''
+    self.mfdir = os.path.dirname(makefile)
+    self.suffix = (self.mfdir and
+                   '_%s' % self.mfdir.replace(os.path.sep, '_') or '')
     self.variables = {}
     self.targets = {}
     # We need to update TOP and SRC everywhere, including the
@@ -582,7 +583,7 @@ class Makefile(object):
     if not v.definition:
       return None
 
-    mfdir = os.path.dirname(self.makefile)
+    mfdir = self.mfdir
     mfdir_slash = '%s%s' % (mfdir, os.path.sep)
     values = SplitPreservingWhitespace(v.definition)
 
@@ -649,13 +650,12 @@ class Makefile(object):
     """
     # No need to compute this every time; cache the results.
     if not self._updatable_recipe_tokens:
-      TOKEN_PATTERN = re.compile('[a-zA-Z]')
-      MFDIR = os.path.dirname(self.makefile)
+      TOKEN_PATTERN = re.compile('^[a-zA-Z]')
       TOKENS_TO_EXCLUDE = set(['rm', 'cc', 'lint', 'ctags'])
 
       def IsTokenMatch(token):
         """Returns True if the token should be updated."""
-        return (os.path.dirname(token) != MFDIR and
+        return (os.path.dirname(token) != self.mfdir and
                 TOKEN_PATTERN.match(token) and
                 token not in TOKENS_TO_EXCLUDE)
 
@@ -719,7 +719,7 @@ class Makefile(object):
 
     result = Makefile.Target(t.name, '', '')
 
-    mfdir = os.path.dirname(self.makefile)
+    mfdir = self.mfdir
     mfdir_slash = '%s%s' % (mfdir, os.path.sep)
     prereqs = SplitPreservingWhitespace(t.prerequisites)
     recipe = SplitPreservingWhitespace(t.recipe)
