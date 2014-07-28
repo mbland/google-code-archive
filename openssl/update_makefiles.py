@@ -659,6 +659,10 @@ class Makefile(object):
       True: if token should be prefixed with the directory path
       False: otherwise
     """
+    def StripToken(token):
+      """Strips any known extraneous characters from a token."""
+      return token.rstrip(';')
+
     # No need to compute this every time; cache the results.
     if not self._updatable_recipe_tokens:
       TOKEN_PATTERN = re.compile('^[a-zA-Z]')
@@ -669,10 +673,6 @@ class Makefile(object):
         return (os.path.dirname(token) != self.mfdir and
                 TOKEN_PATTERN.match(token) and
                 token not in TOKENS_TO_EXCLUDE)
-
-      def StripToken(token):
-        """Strips any known extraneous characters from a token."""
-        return token.rstrip(';')
 
       for name, target in self.targets.iteritems():
         if IsTokenMatch(name):
@@ -692,6 +692,7 @@ class Makefile(object):
     # Some rules don't declare the objects they need as dependencies; they
     # compile the objects themselves.
     SRC_OBJ_PATTERN = re.compile('\.[csSo]$')
+    token = StripToken(token)
     return (token in self._updatable_recipe_tokens or
             os.path.basename(token) in self._updatable_recipe_tokens or
             (SRC_OBJ_PATTERN.search(token) and not os.path.dirname(token)))
@@ -776,7 +777,18 @@ class Makefile(object):
     else:
       TOP_VAR = '$(TOP%s)' % self.suffix
       for i, s in enumerate(recipe):
-        if self.IsUpdatableRecipeToken(s) or s.startswith('.'):
+        if '=' in s:
+          parts = s.split('=')
+          assert len(parts) == 2, (
+              '%s: multiple \'=\' in token "%s" for target "%s"' % (
+                  self.makefile, s, t.name))
+          param = parts[0]
+          value = parts[1]
+          EXCLUDED_PARAMS = ['DIRS', 'TOP']
+          if (param not in EXCLUDED_PARAMS and
+              self.IsUpdatableRecipeToken(value)):
+            recipe[i] = '%s=%s' % (param, NormalizeTargetToken(value))
+        elif self.IsUpdatableRecipeToken(s) or s.startswith('.'):
           recipe[i] = NormalizeTargetToken(s)
         elif s.startswith('-I..') or s.startswith('-L..'):
           recipe[i] = NormalizeRelativeDirectory(s, s[0:2], self.makefile)
