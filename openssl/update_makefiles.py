@@ -1211,28 +1211,28 @@ def UpdateMakefilesStage1(info, dirname, fnames):
   gnu_makefile_name = os.path.join(dirname, 'GNUmakefile')
   bsd_makefile_name = os.path.join(dirname, 'BSDmakefile')
 
-  def UpdateTargetNamesHelper(infile, outfile):
+  def UpdateTargetNamesBinder(infile, outfile):
     """Binds the local target map to UpdateTargetNames()."""
     UpdateTargetNames(infile, outfile, target_map)
 
-  def UpdateVariableNamesHelper(infile, outfile):
+  def UpdateVariableNamesBinder(infile, outfile):
     """Binds the local variable map to UpdateVariableNames()."""
     UpdateVariableNames(infile, outfile, variable_map)
 
-  def EmitSuffixTargetRulesHelper(infile, outfile):
+  def EmitSuffixTargetRulesBinder(infile, outfile):
     """Binds the local variable map and suffix to EmitSuffixTargetRules()."""
     EmitSuffixTargetRules(infile, outfile, variable_map, makefile.suffix)
 
-  def UpdateRecursiveMakeArgsHelper(infile, outfile):
+  def UpdateRecursiveMakeArgsBinder(infile, outfile):
     """Binds the local Makefile suffix to UpdateRecursiveMakeArgs()."""
     UpdateRecursiveMakeArgs(infile, outfile, makefile.suffix)
 
-  UpdateFile(makefile_name, UpdateTargetNamesHelper)
-  UpdateFile(makefile_name, UpdateVariableNamesHelper)
-  UpdateFile(gnu_makefile_name, UpdateVariableNamesHelper)
-  UpdateFile(bsd_makefile_name, UpdateVariableNamesHelper)
-  UpdateFile(makefile_name, EmitSuffixTargetRulesHelper)
-  UpdateFile(makefile_name, UpdateRecursiveMakeArgsHelper)
+  UpdateFile(makefile_name, UpdateTargetNamesBinder)
+  UpdateFile(makefile_name, UpdateVariableNamesBinder)
+  UpdateFile(gnu_makefile_name, UpdateVariableNamesBinder)
+  UpdateFile(bsd_makefile_name, UpdateVariableNamesBinder)
+  UpdateFile(makefile_name, EmitSuffixTargetRulesBinder)
+  UpdateFile(makefile_name, UpdateRecursiveMakeArgsBinder)
   UpdateFile(makefile_name, UpdateTargetNamesFixup)
 
 
@@ -1385,21 +1385,21 @@ def UpdateMakefilesStage2(info, dirname, fnames):
   gnu_makefile_name = os.path.join(dirname, 'GNUmakefile')
   bsd_makefile_name = os.path.join(dirname, 'BSDmakefile')
 
-  def EliminateVarsAndTargetsHelper(infile, outfile):
+  def EliminateVarsAndTargetsBinder(infile, outfile):
     """Binds the local Makefile to EliminateVarsAndTargets()."""
     EliminateVarsAndTargets(infile, outfile, makefile)
 
-  UpdateFile(makefile_name, EliminateVarsAndTargetsHelper)
-  UpdateFile(gnu_makefile_name, EliminateVarsAndTargetsHelper)
-  UpdateFile(bsd_makefile_name, EliminateVarsAndTargetsHelper)
+  UpdateFile(makefile_name, EliminateVarsAndTargetsBinder)
+  UpdateFile(gnu_makefile_name, EliminateVarsAndTargetsBinder)
+  UpdateFile(bsd_makefile_name, EliminateVarsAndTargetsBinder)
   UpdateFile(gnu_makefile_name, UpdateIncludeDirectives)
   UpdateFile(bsd_makefile_name, UpdateIncludeDirectives)
 
-  def UpdateDirectoryPathsHelper(infile, outfile):
+  def UpdateDirectoryPathsBinder(infile, outfile):
     """Binds the local Makefile to UpdateDirectoryPaths()."""
     UpdateDirectoryPaths(infile, outfile, makefile)
 
-  UpdateFile(makefile_name, UpdateDirectoryPathsHelper)
+  UpdateFile(makefile_name, UpdateDirectoryPathsBinder)
 
 
 if __name__ == '__main__':
