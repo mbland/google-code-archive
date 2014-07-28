@@ -1231,15 +1231,23 @@ def UpdateTargetNamesFixup(infile, outfile):
     infile: Makefile to read
     outfile: Makefile to write
   """
+  updated = False
+  local_lib_target = 'lib_%s' % (
+      os.path.dirname(infile.name).replace(os.path.sep, '_'))
   for line in infile:
     target_match = TARGET_PATTERN.match(line)
     if target_match:
       target_name = target_match.group(1)
-      if target_name == 'lib' and ': lib_' in line:
+      if target_name == 'lib' and local_lib_target in line:
+        updated = True
         continue
-      if target_name.startswith('lib_'):
-        line = line.replace(target_name, 'lib')
+      if local_lib_target in line:
+        updated = True
+        line = line.replace(local_lib_target, 'lib')
     print >>outfile, line,
+
+  if updated:
+    print '%s: fixed up target names' % infile.name
 
 
 def UpdateMakefilesStage1(info, dirname, fnames):
