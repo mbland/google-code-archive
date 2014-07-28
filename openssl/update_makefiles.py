@@ -1156,6 +1156,28 @@ def UpdateRecursiveMakeArgs(infile, outfile, suffix):
     print >>outfile, line,
 
 
+def UpdateTargetNamesFixup(infile, outfile):
+  """Undoes earlier target name modifications.
+
+  Realized after-the-fact that 'lib' should not be a common target, because
+  each individual 'lib' target actually touches a file called 'lib' in its
+  directory as the final step in its recipe.
+
+  Args:
+    infile: Makefile to read
+    outfile: Makefile to write
+  """
+  for line in infile:
+    target_match = TARGET_PATTERN.match(line)
+    if target_match:
+      target_name = target_match.group(1)
+      if target_name == 'lib' and ': lib_' in line:
+        continue
+      if target_name.startswith('lib_'):
+        line = line.replace(target_name, 'lib')
+    print >>outfile, line,
+
+
 def UpdateMakefilesStage1(info, dirname, fnames):
   """Applies a series of updates to dirname/Makefile (if it exists).
 
@@ -1197,6 +1219,7 @@ def UpdateMakefilesStage1(info, dirname, fnames):
   UpdateFile(bsd_makefile_name, UpdateVariableNamesHelper)
   UpdateFile(makefile_name, EmitSuffixTargetRulesHelper)
   UpdateFile(makefile_name, UpdateRecursiveMakeArgsHelper)
+  UpdateFile(makefile_name, UpdateTargetNamesFixup)
 
 
 def EliminateVarsAndTargets(infile, outfile, makefile):
