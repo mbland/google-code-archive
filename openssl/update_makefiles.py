@@ -662,7 +662,7 @@ class Makefile(object):
     # No need to compute this every time; cache the results.
     if not self._updatable_recipe_tokens:
       TOKEN_PATTERN = re.compile('^[a-zA-Z]')
-      TOKENS_TO_EXCLUDE = set(['rm', 'cc', 'lint', 'ctags'])
+      TOKENS_TO_EXCLUDE = set(['rm', 'cc', 'lint', 'ctags', 'cat', 'sh'])
 
       def IsTokenMatch(token):
         """Returns True if the token should be updated."""
@@ -682,6 +682,9 @@ class Makefile(object):
             [StripToken(i) for i in prereqs if IsTokenMatch(i)])
 
       for name, variable in self.variables.iteritems():
+        if '_CMD' in name or ';' in variable.definition:
+          # Omit vars that define shell commmands.
+          continue
         def_items = variable.definition.split()
         self._updatable_recipe_tokens.update(
             [StripToken(i) for i in def_items if IsTokenMatch(i)])
@@ -745,7 +748,7 @@ class Makefile(object):
       TOP_REL_PATH = '.%s' % os.path.sep
       mfdir_parent = os.path.dirname(mfdir)
       s_parent = os.path.dirname(s)
-      if (s.isspace() or s.startswith(mfdir_slash) or
+      if (s.isspace() or s == '\\' or s.startswith(mfdir_slash) or
           (mfdir_parent and s.startswith(mfdir_parent)) or
           (s_parent and not os.path.exists(os.path.join(mfdir, s_parent))) or
           s.endswith(self.suffix) or s.startswith('$') or
@@ -775,6 +778,8 @@ class Makefile(object):
       for i, s in enumerate(recipe):
         if self.IsUpdatableRecipeToken(s) or s.startswith('.'):
           recipe[i] = NormalizeTargetToken(s)
+        elif s.startswith('-I..') or s.startswith('-L..'):
+          recipe[i] = NormalizeRelativeDirectory(s, s[0:2], self.makefile)
         elif s == TOP_VAR:
           # One extra precaution: If the recipe has $(TOP) by itself as an
           # argument to a program, we need to ensure that the resulting path
