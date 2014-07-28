@@ -650,7 +650,7 @@ class Makefile(object):
     if not self._updatable_recipe_tokens:
       TOKEN_PATTERN = re.compile('[a-zA-Z]')
       MFDIR = os.path.dirname(self.makefile)
-      TOKENS_TO_EXCLUDE = set(['rm', 'cc'])
+      TOKENS_TO_EXCLUDE = set(['rm', 'cc', 'lint', 'ctags'])
 
       def IsTokenMatch(token):
         """Returns True if the token should be updated."""
@@ -723,35 +723,49 @@ class Makefile(object):
     prereqs = SplitPreservingWhitespace(t.prerequisites)
     recipe = SplitPreservingWhitespace(t.recipe)
 
-    def UpdateTargetToken(s):
-      """Adds the directory prefix to a target token as needed."""
+    def NormalizeTargetToken(s):
+      """Adds the directory prefix to token and normalizes the path."""
+      TOP_REL_PATH = '.%s' % os.path.sep
       mfdir_parent = os.path.dirname(mfdir)
       s_parent = os.path.dirname(s)
-      TOP_REL_PATH = '.%s' % os.path.sep
       if (s.isspace() or s.startswith(mfdir_slash) or
           (mfdir_parent and s.startswith(mfdir_parent)) or
           (s_parent and not os.path.exists(os.path.join(mfdir, s_parent))) or
           s.endswith(self.suffix) or s.startswith('$') or
           s.startswith(TOP_REL_PATH)):
         return s
-      if s in self.common_targets:
-        # This should only apply to prerequisites and recipes, since we've
-        # filtered out common targets by name just above.
-        return '%s%s' % (s, self.suffix)
       result = os.path.normpath(os.path.join(mfdir, s))
-      if not result.startswith(mfdir) and os.path.sep not in result:
+      if not (result.startswith(mfdir) or os.path.sep in result):
         result = '%s%s' % (TOP_REL_PATH, result)
       return result
 
-    result.name = EliminateTop(UpdateTargetToken(t.name))
+    def UpdatePrerequisiteTargetToken(s):
+      """Adds the directory prefix to a target token as needed."""
+      if s in self.common_targets:
+        return '%s%s' % (s, self.suffix)
+      return NormalizeTargetToken(s)
 
-    # At this stage in processing, we want to keep $(TOP), since there's no
-    # other way of knowing that a particular token has been rooted at the top
-    # level.
-    result.prerequisites = ''.join([UpdateTargetToken(s) for s in prereqs])
-    result.recipe = EliminateTop(t.recipe)
-    #result.recipe = EliminateTop(''.join(
-    #    [UpdateTargetToken(s) for s in recipe]))
+    result.name = EliminateTop(NormalizeTargetToken(t.name))
+    result.prerequisites = EliminateTop(
+        ''.join([UpdatePrerequisiteTargetToken(s) for s in prereqs]))
+
+    if t.name.startswith('clean') or t.name.startswith('dclean'):
+      for i, s in enumerate(recipe):
+        if not (s.isspace() or s in ['rm', 'mv', '-f'] or s.startswith('$')):
+          recipe[i] = NormalizeTargetToken(s)
+    else:
+      TOP_VAR = '$(TOP%s)' % self.suffix
+      for i, s in enumerate(recipe):
+        if self.IsUpdatableRecipeToken(s) or s.startswith('.'):
+          recipe[i] = NormalizeTargetToken(s)
+        elif s == TOP_VAR:
+          # One extra precaution: If the recipe has $(TOP) by itself as an
+          # argument to a program, we need to ensure that the resulting path
+          # doesn't get re-processed on later runs.
+          recipe[i] = '.%s' % os.path.sep
+
+    result.recipe = EliminateTop(''.join(recipe))
+
     return (t.name != result.name or
             t.prerequisites != result.prerequisites or
             t.recipe != result.recipe) and result or None
