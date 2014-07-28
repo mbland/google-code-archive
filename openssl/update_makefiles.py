@@ -551,8 +551,6 @@ class Makefile(object):
       if target.recipe and recipe:
         raise UpdateMakefilesException(
             'duplicate recipes for %s' % target.name)
-    # TODO(mbland): We need to handle multiple targets defined on the same
-    # line.
 
   def LocalTargetMap(self):
     """Returns a hash of target name -> local name for self.common_targets.
@@ -675,8 +673,10 @@ class Makefile(object):
                 token not in TOKENS_TO_EXCLUDE)
 
       for name, target in self.targets.iteritems():
-        if IsTokenMatch(name):
-          self._updatable_recipe_tokens.update([StripToken(name)])
+        # We store multiple targets defined in the same recipe as one long
+        # name, so we need to split the names apart here.
+        self._updatable_recipe_tokens.update(
+            [StripToken(i) for i in name.split() if IsTokenMatch(i)])
         prereqs = target.prerequisites.split()
         self._updatable_recipe_tokens.update(
             [StripToken(i) for i in prereqs if IsTokenMatch(i)])
@@ -741,6 +741,9 @@ class Makefile(object):
 
     mfdir = self.mfdir
     mfdir_slash = '%s%s' % (mfdir, os.path.sep)
+    # We store multiple targets defined in the same recipe as one long name,
+    # so we need to split the names apart here.
+    name = SplitPreservingWhitespace(t.name)
     prereqs = SplitPreservingWhitespace(t.prerequisites)
     recipe = SplitPreservingWhitespace(t.recipe)
 
@@ -766,7 +769,8 @@ class Makefile(object):
         return '%s%s' % (s, self.suffix)
       return NormalizeTargetToken(s)
 
-    result.name = EliminateTop(NormalizeTargetToken(t.name))
+    result.name = EliminateTop(
+        ''.join([NormalizeTargetToken(s) for s in name]))
     result.prerequisites = EliminateTop(
         ''.join([UpdatePrerequisiteTargetToken(s) for s in prereqs]))
 
@@ -849,7 +853,7 @@ def ParseMakefile(infile):
     var_match = VAR_DEFINITION_PATTERN.match(line)
     target_match = TARGET_PATTERN.match(line)
 
-    if multiline_target_name:
+    if multiline_target_name and not target_match:
       target_match = MULTILINE_TARGET_PATTERN.match(line)
 
     if var_match and target_match:
@@ -1084,6 +1088,8 @@ def UpdateTargetNames(infile, outfile, targets):
   appear in other Makefiles to have a directory-specific suffix, and replaces
   those original targets with dependency-only targets that depend on the
   Makefile-local versions.
+
+  NOTE: This doesn't handle multiline target definitions.
 
   Args:
     infile: Makefile to read
@@ -1349,37 +1355,56 @@ def UpdateDirectoryPaths(infile, outfile, makefile):
     makefile: Makefile object containing current variable and target info
   """
   skip_lines = 0
+  multiline_target_name = []
   updated_vars = False
   updated_targets = False
   for line in infile:
     if skip_lines:
+      assert line != '\n', '%s: skipping blank line' % infile.name
       skip_lines -= 1
       continue
 
     update = None
     var_match = VAR_DEFINITION_PATTERN.match(line)
     target_match = TARGET_PATTERN.match(line)
+
+    if multiline_target_name and not target_match:
+      target_match = MULTILINE_TARGET_PATTERN.match(line)
+
     if var_match and target_match:
       raise UpdateMakefilesException('%s: %s\n  var: %s\n  target:%s' %
           (infile.name, line, var_match.group(1), target_match.group(1)))
 
     if var_match:
-      v = makefile.UpdateVariableWithDirectoryName(var_match.group(1))
-      if v:
-        update = '%s%s' % (var_match.group(0), v)
-        updated_vars = updated_vars or bool(update)
+      name = var_match.group(1)
+      definition = makefile.UpdateVariableWithDirectoryName(name)
+      if definition is not None:
+        updated_vars = True
+      else:
+        definition = makefile.variables[name].definition
+      update = '%s%s' % (var_match.group(0), definition)
 
     elif target_match:
-      t = makefile.UpdateTargetWithDirectoryName(target_match.group(1))
-      if t:
-        update = '%s:%s%s' % (t.name, t.prerequisites, t.recipe)
-        updated_targets = updated_targets or bool(update)
+      name = '%s%s' % (
+            ''.join(multiline_target_name), target_match.group(1))
+      # Make sure not to skip too many lines.
+      skip_lines -= len(multiline_target_name)
+      multiline_target_name = []
+      target = makefile.UpdateTargetWithDirectoryName(name)
+      if target is not None:
+        updated_targets = True
+      else:
+        target = makefile.targets[name]
+      update = '%s:%s%s' % (target.name, target.prerequisites, target.recipe)
+
+    elif Continues(line) and not line.startswith('#'):
+      multiline_target_name.append(line)
+      continue
 
     if update:
       print >>outfile, update,
-      skip_lines = update.count('\n') - 1
+      skip_lines += update.count('\n') - 1
       assert skip_lines >= 0, '%s: %s' % (infile.name, update)
-      updated = True
     else:
       print >>outfile, line,
 
