@@ -784,6 +784,7 @@ class Makefile(object):
     result.prerequisites = EliminateTop(
         ''.join([UpdatePrerequisiteTargetToken(s) for s in prereqs]))
 
+    # Recipe parsing
     if t.name.startswith('clean') or t.name.startswith('dclean'):
       for i, s in enumerate(recipe):
         if not (s.isspace() or s in ['rm', 'mv', '-f'] or s.startswith('$')):
@@ -791,7 +792,12 @@ class Makefile(object):
     else:
       TOP_VAR = '$(TOP%s)' % self.suffix
       for i, s in enumerate(recipe):
+        shell_prefix = s.startswith('@')
+        if shell_prefix:
+          s = s[1:]
+
         if '=' in s:
+          # Split and update a token in a command-line variable assignment.
           parts = s.split('=')
           assert len(parts) == 2, (
               '%s: multiple \'=\' in token "%s" for target "%s"' % (
@@ -800,17 +806,49 @@ class Makefile(object):
           value = parts[1]
           EXCLUDED_PARAMS = ['DIRS', 'TOP']
           if (param not in EXCLUDED_PARAMS and
-              self.IsUpdatableRecipeToken(value)):
+              (self.IsUpdatableRecipeToken(value) or value.startswith('.'))):
             recipe[i] = '%s=%s' % (param, NormalizeTargetToken(value))
-        elif self.IsUpdatableRecipeToken(s) or s.startswith('.'):
-          recipe[i] = NormalizeTargetToken(s)
-        elif s.startswith('-I..') or s.startswith('-L..'):
-          recipe[i] = NormalizeRelativeDirectory(s, s[0:2], self.makefile)
+
         elif s == TOP_VAR:
-          # One extra precaution: If the recipe has $(TOP) by itself as an
-          # argument to a program, we need to ensure that the resulting path
-          # doesn't get re-processed on later runs.
-          recipe[i] = '.%s' % os.path.sep
+          # If the recipe has $(TOP) by itself as an argument to a program, we
+          # need to ensure that the resulting path doesn't get re-processed on
+          # later runs.
+          recipe[i] = TOP_REL_PATH
+
+        elif s == TOP_REL_PATH:
+          continue
+
+        elif s.startswith('-I..') or s.startswith('-L..'):
+          # Some recipes define their own include and library search paths.
+          recipe[i] = NormalizeRelativeDirectory(s, s[0:2], self.makefile)
+
+        elif ('>' in s and '<' not in s) or ('<' in s and '>' not in s):
+          # File redirection. If both '<' and '>' are present, it's a Perl
+          # filehandle.
+          redirect_sigil = '>' in s and '>' or '<'
+          start_pos = s.find(redirect_sigil) + 1
+          if len(s) == start_pos:
+            continue
+          if s[start_pos] == redirect_sigil:
+            # Append redirection, i.e. ">>"
+            start_pos += 1
+          if len(s) == start_pos:
+            continue
+          if s[start_pos] == '&' or s[start_pos] == '$':
+            # File descriptor redirection or variable-defined input file.
+            continue
+          redirect_file = s[start_pos:]
+          if not (redirect_file.startswith(mfdir_slash) or
+                  os.path.isabs(redirect_file)):
+            recipe[i] = '%s%s' % (s[:start_pos],
+                os.path.normpath(os.path.join(mfdir, redirect_file)))
+
+        elif self.IsUpdatableRecipeToken(s) or s.startswith('.'):
+          # The "common" case for tokens that need to be updated.
+          recipe[i] = NormalizeTargetToken(s)
+
+        if shell_prefix and recipe[i][0] != '@':
+          recipe[i] = '@%s' % recipe[i]
 
     result.recipe = EliminateTop(''.join(recipe))
 
