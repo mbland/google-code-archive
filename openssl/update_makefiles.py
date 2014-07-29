@@ -741,6 +741,7 @@ class Makefile(object):
 
     mfdir = self.mfdir
     mfdir_slash = '%s%s' % (mfdir, os.path.sep)
+    TOP_REL_PATH = '.%s' % os.path.sep
     # We store multiple targets defined in the same recipe as one long name,
     # so we need to split the names apart here.
     name = SplitPreservingWhitespace(t.name)
@@ -749,15 +750,24 @@ class Makefile(object):
 
     def NormalizeTargetToken(s):
       """Adds the directory prefix to token and normalizes the path."""
-      TOP_REL_PATH = '.%s' % os.path.sep
+      basename = os.path.basename(s)
+      if basename.startswith('$'):
+        # Variable values should be normalized already.
+        return basename
+
       mfdir_parent = os.path.dirname(mfdir)
       s_parent = os.path.dirname(s)
       if (s.isspace() or s == '\\' or s.startswith(mfdir_slash) or
           (mfdir_parent and s.startswith(mfdir_parent)) or
           (s_parent and not os.path.exists(os.path.join(mfdir, s_parent))) or
           s.endswith(self.suffix) or s.startswith('$') or
-          s.startswith(TOP_REL_PATH)):
+          os.path.exists(s) or s.startswith(os.path.join('.', 'lib'))):
         return s
+      if s.startswith(TOP_REL_PATH):
+        var_sigil_pos = s.find('$')
+        if var_sigil_pos != -1:
+          # Variable definitions should already be normalized
+          return s[var_sigil_pos:]
       result = os.path.normpath(os.path.join(mfdir, s))
       if not (result.startswith(mfdir) or os.path.sep in result):
         result = '%s%s' % (TOP_REL_PATH, result)
