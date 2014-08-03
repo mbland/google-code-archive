@@ -1476,7 +1476,6 @@ def UpdateIncludeDirectives(infile, outfile):
   Args:
     infile: Makefile to read
     outfile: Makefile to write
-    makefile: Makefile object containing current variable and target info
   """
   if os.path.basename(infile.name) not in ['GNUmakefile', 'BSDmakefile']:
     raise UpdateMakefilesException, 'not a {GNU,BSD}makefile: %s' % (
