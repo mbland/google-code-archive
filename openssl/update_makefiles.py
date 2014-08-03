@@ -472,6 +472,11 @@ class Makefile(object):
     def __str__(self):
       return '%s=%s' % (self.name, self.definition)
 
+    @property
+    def num_lines(self):
+      """Returns the number of newline characters in the Variable."""
+      return self.definition.count('\n')
+
   class Target(object):
     """Representation of a Makefile target.
 
@@ -488,6 +493,12 @@ class Makefile(object):
 
     def __str__(self):
       return '%s:%s%s' % (self.name, self.prerequisites, self.recipe)
+
+    @property
+    def num_lines(self):
+      """Returns the number of newline characters in the Target."""
+      return (self.name.count('\n') + self.prerequisites.count('\n') +
+              self.recipe.count('\n'))
 
   def __init__(self, makefile):
     self.makefile = makefile
@@ -1380,15 +1391,16 @@ def EliminateVarsAndTargets(infile, outfile, makefile):
       var_name = var_match.group(1)
       if var_name in makefile.variables:
         v = makefile.variables[var_name]
-        skip_lines = v.definition.count('\n') - 1
+        skip_lines = v.num_lines - 1
       else:
         # This is a {BSD,GNU}makefile with one-line-only var definitions.
         pass
       deleted_vars.append(var_name)
 
     elif target_match and target_match.group(1) in targets_to_delete:
+      # Note that this doesn't delete multiline target names.
       t = makefile.targets[target_match.group(1)]
-      skip_lines = t.prerequisites.count('\n') + t.recipe.count('\n') - 1
+      skip_lines = t.num_lines - 1
       assert skip_lines >= 0, '%s: %s' % (infile.name, t)
       deleted_targets.append(t.name)
 
