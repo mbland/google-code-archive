@@ -1623,6 +1623,60 @@ def RemoveCryptoSubdirIncludeVariable(infile, outfile, makefile):
     print '%s: removed INCLUDES_crypto_* variable' % infile.name
 
 
+def RemoveCryptoSubdirLibTarget(infile, outfile, makefile):
+  """Removes the crypto/*/lib target from a Makefile.
+
+  To make for a more accurate dependency graph (and improved parallelism),
+  libcrypto.a will be built in a single recipe defined in crypto/Makefile,
+  rather than accumulating objects via 'ar r'.
+
+  Args:
+    infile: GNUmakefile to read
+    outfile: GNUmakefile to write
+    makefile: Makefile object corresponding to infile/outfile
+  """
+  skip_lines = 0
+  target_removed = False
+  lib_target_label = os.path.join(makefile.mfdir, 'lib')
+
+  if lib_target_label not in makefile.targets:
+    for line in infile:
+      print >>outfile, line,
+    return
+
+  target_to_remove = makefile.targets[lib_target_label]
+
+  for line in infile:
+    if skip_lines:
+      skip_lines -= 1
+      continue
+
+    target_match = TARGET_PATTERN.match(line)
+    if target_match:
+      target_name = target_match.group(1)
+      target = makefile.targets[target_name]
+
+      if target_name == lib_target_label:
+        skip_lines = target_to_remove.num_lines - 1
+        target_removed = True
+        continue
+
+      elif lib_target_label in target.prerequisites:
+        target.prerequisites = re.sub(
+          lib_target_label, target_to_remove.prerequisites,
+          target.prerequisites.strip())
+        print >>outfile, '%s' % target,
+        skip_lines = target.num_lines - 1
+        target_removed = True
+        continue
+
+    print >>outfile, line,
+
+  if target_removed:
+    print '%s: removed crypto/*/lib target' % infile.name
+
+
+
 def UpdateMakefilesStage2(info, dirname, fnames):
   """Applies a series of updates to dirname/Makefile (if it exists).
 
@@ -1672,9 +1726,14 @@ def UpdateMakefilesStage2(info, dirname, fnames):
     """Binds the local Makefile to RemoveCryptoSubdirIncludeVariable()."""
     RemoveCryptoSubdirIncludeVariable(infile, outfile, makefile)
 
+  def RemoveCryptoSubdirLibTargetBinder(infile, outfile):
+    """Binds the local Makefile to RemoveCryptoSubdirLibTarget()."""
+    RemoveCryptoSubdirLibTarget(infile, outfile, makefile)
+
   path_components = dirname.split(os.path.sep)
   if 'crypto' in path_components and path_components[-1] != 'crypto':
     UpdateFile(makefile_name, RemoveCryptoSubdirIncludeVariableBinder)
+    UpdateFile(makefile_name, RemoveCryptoSubdirLibTargetBinder)
 
 
 if __name__ == '__main__':
