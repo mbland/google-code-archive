@@ -494,6 +494,9 @@ class Makefile(object):
     def __str__(self):
       return '%s:%s%s' % (self.name, self.prerequisites, self.recipe)
 
+    def __cmp__(self, rhs):
+      return cmp(self.name, rhs.name)
+
     @property
     def num_lines(self):
       """Returns the number of newline characters in the Target."""
@@ -1503,6 +1506,123 @@ def UpdateIncludeDirectives(infile, outfile):
       print >>outfile, line,
 
 
+def TransformDefaultRuleToGnu(rule, makefile_dir):
+  """Transforms a default rule target to a GNU-style pattern target.
+
+  Args:
+    rule: Makefile.Target representing a default rule
+    makefile_dir: directory in which the Makefile resides
+  Returns:
+    a new Makefile.Target defining a default rule in GNU syntax
+  """
+  assert rule.name in DEFAULT_RULE_TARGETS
+  suffix_pos = rule.name.find('.', 1)
+  source = ' %s\n' % os.path.join(
+      makefile_dir, '%%%s' % rule.name[:suffix_pos])
+  target = os.path.join(makefile_dir, '%%%s' % rule.name[suffix_pos:])
+  return Makefile.Target(target, source, rule.recipe)
+
+
+def AddDefaultRules(infile, outfile, makefile, transform_rule):
+  """Adds the necessary default target rules to a GNUmakefile.
+
+  Args:
+    infile: GNUmakefile to read
+    outfile: GNUmakefile to write
+    makefile: Makefile object containing current default target rules
+    transform_rule: function which takes a default rule and Makefile directory
+      and returns a new Makefile.Target defined using GNU syntax
+  """
+  rules_to_emit = {}
+  for rule_name in DEFAULT_RULE_TARGETS:
+    if rule_name in makefile.targets:
+      rule = transform_rule(makefile.targets[rule_name], makefile.mfdir)
+      rules_to_emit[rule.name] = rule
+
+  for line in infile:
+    target_match = TARGET_PATTERN.match(line)
+    if target_match:
+      target_name = target_match.group(1)
+      if target_name in rules_to_emit:
+        del rules_to_emit[target_name]
+    print >>outfile, line,
+
+  if not rules_to_emit:
+    return
+  print >>outfile, ''
+
+  rules_to_emit = rules_to_emit.values()
+  rules_to_emit.sort()
+
+  for rule in rules_to_emit:
+    print >>outfile, '%s' % rule,
+  print '%s: added default rules' % infile.name
+
+
+def RemoveDefaultTargetRules(infile, outfile, makefile):
+  """Removes the default/suffix target rules from a Makefile.
+
+  This should be called after AddDefaultRulesToMakefile().
+
+  Args:
+    infile: Makefile to read
+    outfile: Makefile to write
+    makefile: Makefile object containing current default target rules
+  """
+  skip_lines = 0
+  target_removed = False
+  for line in infile:
+    if skip_lines:
+      skip_lines -= 1
+      continue
+
+    # Note that this doesn't handle multiline target names.
+    target_match = TARGET_PATTERN.match(line)
+    if target_match:
+      target_name = target_match.group(1)
+      if target_name in DEFAULT_RULE_TARGETS:
+        skip_lines = makefile.targets[target_name].num_lines - 1
+        target_removed = True
+        continue
+    print >>outfile, line,
+
+  if target_removed:
+    print '%s: removed default target rules' % infile.name
+
+
+def RemoveCryptoSubdirIncludeVariable(infile, outfile, makefile):
+  """Removes the INCLUDES_crypto_* variables from a Makefile.
+
+  Args:
+    infile: GNUmakefile to read
+    outfile: GNUmakefile to write
+    makefile: Makefile object corresponding to infile/outfile
+  """
+  skip_lines = 0
+  var_removed = False
+  for line in infile:
+    if skip_lines:
+      skip_lines -= 1
+      continue
+
+    var_match = VAR_DEFINITION_PATTERN.match(line)
+    if var_match:
+      var_name = var_match.group(1)
+      if var_name.startswith('INCLUDES_crypto_'):
+        skip_lines = makefile.variables[var_name].num_lines - 1
+        var_removed = True
+        continue
+
+    if 'INCLUDES_crypto_' in line:
+      line = line.replace('INCLUDES%s' % makefile.suffix, 'INCLUDES_crypto')
+      var_removed = True
+
+    print >>outfile, line,
+
+  if var_removed:
+    print '%s: removed INCLUDES_crypto_* variable' % infile.name
+
+
 def UpdateMakefilesStage2(info, dirname, fnames):
   """Applies a series of updates to dirname/Makefile (if it exists).
 
@@ -1536,6 +1656,25 @@ def UpdateMakefilesStage2(info, dirname, fnames):
     UpdateDirectoryPaths(infile, outfile, makefile)
 
   UpdateFile(makefile_name, UpdateDirectoryPathsBinder)
+
+  def AddDefaultRulesToGnuMakefileBinder(infile, outfile):
+    """Binds the local Makefile and GNU transform to AddDefaultRules()."""
+    AddDefaultRules(infile, outfile, makefile, TransformDefaultRuleToGnu)
+
+  def RemoveDefaultTargetRulesBinder(infile, outfile):
+    """Binds the local Makefile to RemoveDefaultTargetRules()."""
+    RemoveDefaultTargetRules(infile, outfile, makefile)
+
+  UpdateFile(gnu_makefile_name, AddDefaultRulesToGnuMakefileBinder)
+  UpdateFile(makefile_name, RemoveDefaultTargetRulesBinder)
+
+  def RemoveCryptoSubdirIncludeVariableBinder(infile, outfile):
+    """Binds the local Makefile to RemoveCryptoSubdirIncludeVariable()."""
+    RemoveCryptoSubdirIncludeVariable(infile, outfile, makefile)
+
+  path_components = dirname.split(os.path.sep)
+  if 'crypto' in path_components and path_components[-1] != 'crypto':
+    UpdateFile(makefile_name, RemoveCryptoSubdirIncludeVariableBinder)
 
 
 if __name__ == '__main__':
