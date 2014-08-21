@@ -1051,6 +1051,9 @@ class MakefileInfo(object):
   def Init(self):
     """Parses the Makefiles and populates the attribute hashes."""
     for f in ['configure.mk.org', 'Makefile']:
+      if not os.path.exists(f):
+        print 'MakefileInfo.Init(): Skipping nonexistent file %s' % f
+        continue
       with open(f) as infile:
         self.top_makefiles[f] = ParseMakefile(infile)
     self.all_makefiles.update(self.top_makefiles)
