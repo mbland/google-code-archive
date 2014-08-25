@@ -165,6 +165,46 @@ TOP= %s
 .endfor''')
 
 
+def AddGnuIncludeDirectivesToMakefile(infile, outfile):
+  """Adds GNU-style include directives to a Makefile.
+
+  Inserts GNU-style include directives for the top-level configure.mk file and
+  directory-level .d files. Should be applied before makedepend output has
+  been stripped. This effectively converts the Makefiles to be GNU-only.
+
+  Args:
+    infile: Makefile to read
+    outfile: Makefile to write
+  """
+  is_top_level = not os.path.dirname(infile.name)
+  TOP_CONFIGURE_INCLUDE = 'include configure.mk'
+  CONFIGURE_INCLUDE = 'include $(TOP)/configure.mk'
+  DEP_INCLUDE = '-include $(SRC:.c=.d)'
+  emit_config_include_if_needed = False
+  contains_dep_include = False
+  for line in infile:
+    if emit_config_include_if_needed:
+      emit_config_include_if_needed = False
+      if is_top_level:
+        if not line.startswith(TOP_CONFIGURE_INCLUDE):
+          print >>outfile, TOP_CONFIGURE_INCLUDE
+          print '%s: output configure.mk include directive' % infile.name
+      elif not line.startswith(CONFIGURE_INCLUDE):
+        print >>outfile, CONFIGURE_INCLUDE
+        print '%s: output configure.mk include directive' % infile.name
+
+    elif is_top_level and line.startswith('VERSION='):
+      emit_config_include_if_needed = True
+    elif line.startswith('TOP=') and not is_top_level:
+      emit_config_include_if_needed = True
+    elif line.startswith(DEP_INCLUDE):
+      contains_dep_include = True
+    elif line == MAKE_DEPEND_LINE and not contains_dep_include:
+      print >>outfile, DEP_INCLUDE
+      print '%s: output dependency file include directive' % infile.name
+    print >>outfile, line,
+
+
 def AddTopToFilesTarget(infile, outfile):
   """Add TOP to the recipe for the 'make files' target.
 
@@ -328,6 +368,22 @@ def UpdateFile(orig_name, update_func):
   except UpdateMakefilesException, e:
     unused_type, unused_value, traceback = sys.exc_info()
     raise UpdateMakefilesException, '%s: %s' % (orig_name, e), traceback
+
+
+def ApplyGnuOnlyUpdates(unused_arg, dirname, fnames):
+  """Apply GNU-only updates to dirname/Makefile (if it exists).
+
+  Passed to os.path.walk() to process all the Makefiles in the OpenSSL source
+  tree. The processed Makefiles will support the GNU syntax only.
+
+  Args:
+    unused_arg: ignored; required by the os.path.walk() interface
+    dirname: current directory path
+    fnames: list of contents in the current directory
+  """
+  if 'Makefile' not in fnames: return
+  makefile_name = os.path.join(dirname, 'Makefile')
+  UpdateFile(makefile_name, AddGnuIncludeDirectivesToMakefile)
 
 
 def UpdateMakefilesStage0(unused_arg, dirname, fnames):
@@ -1748,6 +1804,9 @@ if __name__ == '__main__':
         help='Print all targets and vars for a Makefile; skip updates')
   parser.add_argument('--makefile',
         help='Process only the specified Makefile')
+  parser.add_argument('--gnu_only',
+        help='Apply updates to convert Makefiles to GNU syntax',
+        action='store_true')
   args = parser.parse_args()
 
   if args.print_common or args.print_makefile:
@@ -1775,6 +1834,14 @@ if __name__ == '__main__':
     info.Init()
     UpdateMakefilesStage1(info, mfdir, files)
     UpdateMakefilesStage2(info, mfdir, files)
+    sys.exit(0)
+
+  if args.gnu_only:
+    for d in os.listdir('.'):
+      if os.path.isdir(d):
+        os.path.walk(d, ApplyGnuOnlyUpdates, None)
+    UpdateFile('Makefile.org', AddGnuIncludeDirectivesToMakefile)
+    UpdateFile('Makefile.fips', AddGnuIncludeDirectivesToMakefile)
     sys.exit(0)
 
   for d in os.listdir('.'):
