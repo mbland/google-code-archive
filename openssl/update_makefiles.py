@@ -384,6 +384,9 @@ def ApplyGnuOnlyUpdates(unused_arg, dirname, fnames):
   if 'Makefile' not in fnames: return
   makefile_name = os.path.join(dirname, 'Makefile')
   UpdateFile(makefile_name, AddGnuIncludeDirectivesToMakefile)
+  UpdateFile(makefile_name, RemoveOldMakeDependOutput)
+  UpdateFile(makefile_name, RemoveDependTarget)
+  UpdateFile(makefile_name, RemoveConfigureVars)
 
 
 def UpdateMakefilesStage0(unused_arg, dirname, fnames):
@@ -1837,11 +1840,19 @@ if __name__ == '__main__':
     sys.exit(0)
 
   if args.gnu_only:
+    # We need to keep TOP in the Makefiles.
+    if 'TOP' in CONFIG_VARS:
+      del CONFIG_VARS['TOP']
+
     for d in os.listdir('.'):
       if os.path.isdir(d):
         os.path.walk(d, ApplyGnuOnlyUpdates, None)
+
     UpdateFile('Makefile.org', AddGnuIncludeDirectivesToMakefile)
     UpdateFile('Makefile.fips', AddGnuIncludeDirectivesToMakefile)
+    UpdateFile('Makefile.org', RemoveConfigureVars)
+    UpdateFile('Makefile.fips', RemoveConfigureVars)
+    UpdateFile('Makefile.shared', RemoveConfigureVars)
     sys.exit(0)
 
   for d in os.listdir('.'):
