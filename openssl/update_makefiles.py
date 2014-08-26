@@ -370,33 +370,14 @@ def UpdateFile(orig_name, update_func):
     raise UpdateMakefilesException, '%s: %s' % (orig_name, e), traceback
 
 
-def ApplyGnuOnlyUpdates(unused_arg, dirname, fnames):
-  """Apply GNU-only updates to dirname/Makefile (if it exists).
-
-  Passed to os.path.walk() to process all the Makefiles in the OpenSSL source
-  tree. The processed Makefiles will support the GNU syntax only.
-
-  Args:
-    unused_arg: ignored; required by the os.path.walk() interface
-    dirname: current directory path
-    fnames: list of contents in the current directory
-  """
-  if 'Makefile' not in fnames: return
-  makefile_name = os.path.join(dirname, 'Makefile')
-  UpdateFile(makefile_name, AddGnuIncludeDirectivesToMakefile)
-  UpdateFile(makefile_name, RemoveOldMakeDependOutput)
-  UpdateFile(makefile_name, RemoveDependTarget)
-  UpdateFile(makefile_name, RemoveConfigureVars)
-
-
-def UpdateMakefilesStage0(unused_arg, dirname, fnames):
+def UpdateMakefilesStage0(config, dirname, fnames):
   """Applies a series of updates to dirname/Makefile (if it exists).
 
   Passed to os.path.walk() to process all the Makefiles in the OpenSSL source
   tree.
 
   Args:
-    unused_arg: ignored; required by the os.path.walk() interface
+    config: Config object
     dirname: current directory path
     fnames: list of contents in the current directory
   """
@@ -404,8 +385,11 @@ def UpdateMakefilesStage0(unused_arg, dirname, fnames):
   makefile_name = os.path.join(dirname, 'Makefile')
   UpdateFile(makefile_name, AddSrcVarIfNeeded)
   UpdateFile(makefile_name, AddDependencyFilesToCleanTargets)
-  CreateGnuMakefile(dirname)
-  CreateBsdMakefile(dirname)
+  if config.gnu_only:
+    UpdateFile(makefile_name, AddGnuIncludeDirectivesToMakefile)
+  else:
+    CreateGnuMakefile(dirname)
+    CreateBsdMakefile(dirname)
   UpdateFile(makefile_name, AddTopToFilesTarget)
   UpdateFile(makefile_name, RemoveConfigureVars)
   UpdateFile(makefile_name, RemoveOldMakeDependOutput)
@@ -1381,13 +1365,13 @@ def UpdateMakefilesStage1(info, dirname, fnames):
   tree. Performs heavier-duty changes than UpdateMakefilesStage0.
 
   Args:
-    info: MakefileInfo object
+    config: Config object
     dirname: current directory path
     fnames: list of contents in the current directory
   """
   if 'Makefile' not in fnames: return
   makefile_name = os.path.join(dirname, 'Makefile')
-  makefile = info.all_makefiles[makefile_name]
+  makefile = config.makefile_info.all_makefiles[makefile_name]
   target_map = makefile.LocalTargetMap()
   variable_map = makefile.LocalVariableMap()
   gnu_makefile_name = os.path.join(dirname, 'GNUmakefile')
@@ -1411,8 +1395,11 @@ def UpdateMakefilesStage1(info, dirname, fnames):
 
   UpdateFile(makefile_name, UpdateTargetNamesBinder)
   UpdateFile(makefile_name, UpdateVariableNamesBinder)
-  UpdateFile(gnu_makefile_name, UpdateVariableNamesBinder)
-  UpdateFile(bsd_makefile_name, UpdateVariableNamesBinder)
+
+  if not config.gnu_only:
+    UpdateFile(gnu_makefile_name, UpdateVariableNamesBinder)
+    UpdateFile(bsd_makefile_name, UpdateVariableNamesBinder)
+
   UpdateFile(makefile_name, EmitSuffixTargetRulesBinder)
   UpdateFile(makefile_name, UpdateRecursiveMakeArgsBinder)
   UpdateFile(makefile_name, UpdateTargetNamesFixup)
@@ -1554,9 +1541,6 @@ def UpdateIncludeDirectives(infile, outfile):
     infile: Makefile to read
     outfile: Makefile to write
   """
-  if os.path.basename(infile.name) not in ['GNUmakefile', 'BSDmakefile']:
-    raise UpdateMakefilesException, 'not a {GNU,BSD}makefile: %s' % (
-        infile.name)
   for line in infile:
     if 'configure.mk' in line:
       print '%s: removed configure.mk include directive' % infile.name
@@ -1747,13 +1731,13 @@ def UpdateMakefilesStage2(info, dirname, fnames):
   nonrecursive make structure.
 
   Args:
-    info: MakefileInfo object
+    config: Config object
     dirname: current directory path
     fnames: list of contents in the current directory
   """
   if 'Makefile' not in fnames: return
   makefile_name = os.path.join(dirname, 'Makefile')
-  makefile = info.all_makefiles[makefile_name]
+  makefile = config.makefile_info.all_makefiles[makefile_name]
   gnu_makefile_name = os.path.join(dirname, 'GNUmakefile')
   bsd_makefile_name = os.path.join(dirname, 'BSDmakefile')
 
@@ -1762,10 +1746,14 @@ def UpdateMakefilesStage2(info, dirname, fnames):
     EliminateVarsAndTargets(infile, outfile, makefile)
 
   UpdateFile(makefile_name, EliminateVarsAndTargetsBinder)
-  UpdateFile(gnu_makefile_name, EliminateVarsAndTargetsBinder)
-  UpdateFile(bsd_makefile_name, EliminateVarsAndTargetsBinder)
-  UpdateFile(gnu_makefile_name, UpdateIncludeDirectives)
-  UpdateFile(bsd_makefile_name, UpdateIncludeDirectives)
+
+  if config.gnu_only:
+    UpdateFile(makefile_name, UpdateIncludeDirectives)
+  else:
+    UpdateFile(gnu_makefile_name, EliminateVarsAndTargetsBinder)
+    UpdateFile(bsd_makefile_name, EliminateVarsAndTargetsBinder)
+    UpdateFile(gnu_makefile_name, UpdateIncludeDirectives)
+    UpdateFile(bsd_makefile_name, UpdateIncludeDirectives)
 
   def UpdateDirectoryPathsBinder(infile, outfile):
     """Binds the local Makefile to UpdateDirectoryPaths()."""
@@ -1781,7 +1769,10 @@ def UpdateMakefilesStage2(info, dirname, fnames):
     """Binds the local Makefile to RemoveDefaultTargetRules()."""
     RemoveDefaultTargetRules(infile, outfile, makefile)
 
-  UpdateFile(gnu_makefile_name, AddDefaultRulesToGnuMakefileBinder)
+  if config.gnu_only:
+    UpdateFile(makefile_name, AddDefaultRulesToGnuMakefileBinder)
+  else:
+    UpdateFile(gnu_makefile_name, AddDefaultRulesToGnuMakefileBinder)
   UpdateFile(makefile_name, RemoveDefaultTargetRulesBinder)
 
   def RemoveCryptoSubdirIncludeVariableBinder(infile, outfile):
@@ -1796,6 +1787,20 @@ def UpdateMakefilesStage2(info, dirname, fnames):
   if 'crypto' in path_components and path_components[-1] != 'crypto':
     UpdateFile(makefile_name, RemoveCryptoSubdirIncludeVariableBinder)
     UpdateFile(makefile_name, RemoveCryptoSubdirLibTargetBinder)
+
+
+class Config(object):
+  """Holds configuration info passed into os.path.walk() during processing.
+
+  Attributes:
+    gnu_only: True if GNU-specific updates should be applied directly to the
+      Makefiles
+    makefile_info: a MakefileInfo instance
+  """
+
+  def __init__(self):
+    self.gnu_only = False
+    self.makefile_info = MakefileInfo()
 
 
 if __name__ == '__main__':
@@ -1821,63 +1826,47 @@ if __name__ == '__main__':
       print info.all_makefiles[args.print_makefile]
     sys.exit(0)
 
+  config = Config()
+  config.gnu_only = args.gnu_only
+
   # Read the top-level configure file, if it exists.
   if os.path.exists('configure.mk.org'):
     CONFIG_VARS = ReadConfigureVars('configure.mk.org')
-    # Adding TOP since it's defined in each Makefile
-    CONFIG_VARS['TOP'] = 1
+    if not config.gnu_only:
+      # Adding TOP since it's defined in each Makefile
+      CONFIG_VARS['TOP'] = 1
     # MAKEDEPEND is on its way out, too.
     CONFIG_VARS['MAKEDEPEND'] = 1
 
   if args.makefile:
     mfdir = os.path.dirname(args.makefile)
     files = ['Makefile']
-    UpdateMakefilesStage0(None, mfdir, files)
-    info = MakefileInfo()
-    info.Init()
-    UpdateMakefilesStage1(info, mfdir, files)
-    UpdateMakefilesStage2(info, mfdir, files)
-    sys.exit(0)
-
-  if args.gnu_only:
-    # We need to keep TOP in the Makefiles.
-    if 'TOP' in CONFIG_VARS:
-      del CONFIG_VARS['TOP']
-
-    for d in os.listdir('.'):
-      if os.path.isdir(d):
-        os.path.walk(d, ApplyGnuOnlyUpdates, None)
-
-    UpdateFile('Makefile.org', AddGnuIncludeDirectivesToMakefile)
-    UpdateFile('Makefile.fips', AddGnuIncludeDirectivesToMakefile)
-    UpdateFile('Makefile.org', RemoveConfigureVars)
-    UpdateFile('Makefile.fips', RemoveConfigureVars)
-    UpdateFile('Makefile.shared', RemoveConfigureVars)
+    UpdateMakefilesStage0(config, mfdir, files)
+    config.makefile_info.Init()
+    UpdateMakefilesStage1(config, mfdir, files)
+    UpdateMakefilesStage2(config, mfdir, files)
     sys.exit(0)
 
   for d in os.listdir('.'):
     if os.path.isdir(d):
-      os.path.walk(d, UpdateMakefilesStage0, None)
+      os.path.walk(d, UpdateMakefilesStage0, config)
 
-  CreateGnuMakefile('.')
-  CreateBsdMakefile('.')
+  if args.gnu_only:
+    UpdateFile('Makefile.org', AddGnuIncludeDirectivesToMakefile)
+    UpdateFile('Makefile.fips', AddGnuIncludeDirectivesToMakefile)
+  else:
+    CreateGnuMakefile('.')
+    CreateBsdMakefile('.')
   UpdateFile('Makefile.org', RemoveConfigureVars)
   UpdateFile('Makefile.fips', RemoveConfigureVars)
   UpdateFile('Makefile.shared', RemoveConfigureVars)
 
-  info = MakefileInfo()
-  info.Init()
+  config.makefile_info.Init()
 
   for d in os.listdir('.'):
     if os.path.isdir(d):
-      os.path.walk(d, UpdateMakefilesStage1, info)
+      os.path.walk(d, UpdateMakefilesStage1, config)
 
   for d in os.listdir('.'):
     if os.path.isdir(d):
-      os.path.walk(d, UpdateMakefilesStage2, info)
-
-  # TODO:
-  # - Add SRC_* vars to top-level SRC, to include all .d files
-  # - Remove lib{crypto,ssl} targets from subdirs
-  # - Remove: DIR TOP top subdirs
-  # - Expand all files that are present in the directory
+      os.path.walk(d, UpdateMakefilesStage2, config)
