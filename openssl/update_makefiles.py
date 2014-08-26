@@ -1815,6 +1815,9 @@ if __name__ == '__main__':
   parser.add_argument('--gnu_only',
         help='Apply updates to convert Makefiles to GNU syntax',
         action='store_true')
+  parser.add_argument('--max_stage',
+        help='Maximum stage of processing to perform',
+        default=2, type=int, choices=range(0,3))
   args = parser.parse_args()
 
   if args.print_common or args.print_makefile:
@@ -1861,11 +1864,17 @@ if __name__ == '__main__':
   UpdateFile('Makefile.fips', RemoveConfigureVars)
   UpdateFile('Makefile.shared', RemoveConfigureVars)
 
+  if args.max_stage == 0:
+    sys.exit(0)
+
   config.makefile_info.Init()
 
   for d in os.listdir('.'):
     if os.path.isdir(d):
       os.path.walk(d, UpdateMakefilesStage1, config)
+
+  if args.max_stage == 1:
+    sys.exit(0)
 
   for d in os.listdir('.'):
     if os.path.isdir(d):
