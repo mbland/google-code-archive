@@ -1583,14 +1583,20 @@ def AddDefaultRules(infile, outfile, makefile, transform_rule):
   for rule_name in DEFAULT_RULE_TARGETS:
     if rule_name in makefile.targets:
       rule = transform_rule(makefile.targets[rule_name], makefile.mfdir)
-      rules_to_emit[rule.name] = rule
+      rules_to_emit[rule_name] = rule
 
   for line in infile:
     target_match = TARGET_PATTERN.match(line)
     if target_match:
       target_name = target_match.group(1)
-      if target_name in rules_to_emit:
-        del rules_to_emit[target_name]
+      # Reconstruct the original suffix rule name.
+      target_suffix_pos = target_name.rfind('\.')
+      prereq_suffix_pos = line.rfind('\.')
+      if target_suffix_pos != -1 and prereq_suffix_pos != -1:
+        rule_name = '%s%s' % i(line[prereq_suffix_pos:].strip(),
+            target_name[target_suffix_pos:])
+        if rule_name in rules_to_emit:
+          del rules_to_emit[rule_name]
     print >>outfile, line,
 
   if not rules_to_emit:
